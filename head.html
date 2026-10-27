@@ -1,0 +1,178 @@
+<title>N2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Lalezar&family=Vazirmatn:wght@400;700;900&display=swap">
+<style>
+/* Layout: full-bleed landscape game canvas; menus float above it as neon arcade panels */
+:root{
+  --ink:#07051a;
+  --night:#140d33;
+  --panel:rgba(16,10,44,.82);
+  --cyan:#29f3ff;
+  --pink:#ff3fd8;
+  --gold:#ffe14a;
+  --amber:#ff8a1f;
+  --txt:#f2eeff;
+  --mute:#a99ed6;
+  --disp:'Lalezar','Vazirmatn',Tahoma,sans-serif;
+  --body:'Vazirmatn',Tahoma,sans-serif;
+  --latin:'Bungee','Lalezar',Impact,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--ink);color:var(--txt);overflow:hidden;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+body{font-family:var(--body);padding-left:max(0px,env(safe-area-inset-left,0px));padding-right:max(0px,env(safe-area-inset-right,0px))}
+#app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--ink)}
+#game{display:block;touch-action:none;background:var(--ink)}
+#ui{position:fixed;inset:0;pointer-events:none;direction:rtl}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(8px,2.4vh,18px);
+  padding-block:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  pointer-events:auto;text-align:center;animation:fadeIn .35s ease both}
+.screen.dim{background:radial-gradient(ellipse at center,rgba(20,8,50,.72),rgba(5,3,18,.94))}
+@keyframes fadeIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
+
+.logo{font-family:var(--latin);font-size:clamp(64px,24vh,170px);line-height:.9;letter-spacing:.04em;direction:ltr;margin:0}
+.logo .n{color:#e9fdff;text-shadow:0 0 6px var(--cyan),0 0 18px var(--cyan),0 0 42px var(--cyan),0 0 80px #1aa9ff;animation:flick 5s infinite}
+.logo .t{color:#fff0fd;text-shadow:0 0 6px var(--pink),0 0 18px var(--pink),0 0 42px var(--pink),0 0 80px #b01fff}
+@keyframes flick{0%,18%,22%,62%,64%,100%{opacity:1}20%,63%{opacity:.35}}
+.tag{font-family:var(--disp);font-size:clamp(18px,5.4vh,32px);color:var(--gold);text-shadow:0 0 10px rgba(255,225,74,.7);margin:0}
+.h2{font-family:var(--disp);font-size:clamp(26px,8vh,46px);margin:0;color:#fff;text-shadow:0 0 10px var(--pink),0 0 26px var(--pink)}
+.h2.cy{text-shadow:0 0 10px var(--cyan),0 0 26px var(--cyan)}
+.h2.gd{text-shadow:0 0 10px var(--gold),0 0 26px var(--amber)}
+.sub{font-size:clamp(13px,3.6vh,17px);color:var(--mute);margin:0;max-width:60ch}
+.row{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center}
+.col{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+
+.btn{font-family:var(--disp);font-size:clamp(17px,5vh,24px);color:var(--txt);background:rgba(10,6,30,.75);
+  border:2px solid var(--cyan);padding:.32em 1.3em .42em;min-width:9.5em;cursor:pointer;
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  box-shadow:inset 0 0 14px rgba(41,243,255,.35);text-shadow:0 0 8px rgba(41,243,255,.8);transition:transform .08s,background .15s}
+.btn:active{transform:scale(.95)}
+.btn:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.btn.pk{border-color:var(--pink);box-shadow:inset 0 0 16px rgba(255,63,216,.45);text-shadow:0 0 8px rgba(255,63,216,.9);background:rgba(60,8,58,.6)}
+.btn.gd{border-color:var(--gold);box-shadow:inset 0 0 16px rgba(255,225,74,.35);text-shadow:0 0 8px rgba(255,225,74,.9)}
+.btn.sm{min-width:0;font-size:clamp(15px,4.2vh,19px);padding:.25em .9em .32em}
+
+.panel{background:var(--panel);border:1.5px solid rgba(41,243,255,.45);box-shadow:0 0 30px rgba(41,243,255,.15),inset 0 0 24px rgba(255,63,216,.08);
+  padding:clamp(10px,3vh,20px) clamp(14px,3vw,26px);border-radius:4px;min-width:0;max-width:100%}
+.cust{display:flex;gap:clamp(12px,3vw,32px);align-items:center;justify-content:center;flex-wrap:wrap;max-height:100%}
+#prev{width:clamp(150px,44vh,240px);height:clamp(170px,52vh,280px);background:radial-gradient(ellipse at 50% 80%,rgba(255,63,216,.25),transparent 60%),radial-gradient(ellipse at 50% 30%,rgba(41,243,255,.18),transparent 70%);border-bottom:2px solid var(--pink);box-shadow:0 10px 30px -14px var(--pink)}
+.opt{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.opt b{font-family:var(--disp);font-weight:400;font-size:clamp(16px,4.4vh,21px);color:var(--gold)}
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--body);font-weight:700;font-size:clamp(13px,3.6vh,16px);color:var(--txt);background:rgba(255,255,255,.05);border:1.5px solid rgba(169,158,214,.5);padding:.3em .9em;border-radius:999px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--cyan);background:rgba(41,243,255,.16);box-shadow:0 0 12px rgba(41,243,255,.5)}
+.sw{width:clamp(26px,8vh,34px);height:clamp(26px,8vh,34px);border-radius:50%;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0}
+.sw[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 3px var(--cyan),0 0 14px var(--cyan)}
+.stats{font-family:var(--latin);direction:ltr;font-size:clamp(22px,7vh,40px);color:#fff;text-shadow:0 0 12px var(--cyan)}
+.small{font-size:clamp(12px,3.2vh,14px);color:var(--mute)}
+.tgl{display:flex;justify-content:space-between;gap:24px;align-items:center;font-weight:700;font-size:clamp(14px,4vh,18px)}
+#rot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--ink);z-index:9;text-align:center;font-family:var(--disp);font-size:24px;color:var(--txt);direction:rtl}
+#rot .ph{width:56px;height:96px;border:4px solid var(--cyan);border-radius:12px;box-shadow:0 0 18px var(--cyan);animation:rot 2s ease-in-out infinite}
+@keyframes rot{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--ink);font-family:var(--latin);font-size:42px;color:#fff;text-shadow:0 0 14px var(--cyan),0 0 30px var(--pink);z-index:10;direction:ltr}
+@media (prefers-reduced-motion:reduce){.logo .n{animation:none}.screen{animation:none}#rot .ph{animation:none}}
+</style>
+
+<div id="app"><canvas id="game"></canvas></div>
+<div id="ui">
+  <section class="screen" id="s-title" hidden>
+    <h1 class="logo"><span class="n">N</span><span class="t">2</span></h1>
+    <p class="tag">نیما در شهر نئون</p>
+    <div class="row">
+      <button class="btn pk" id="b-start">شروع بازی</button>
+      <button class="btn" id="b-cust">شخصیت</button>
+      <button class="btn" id="b-set">تنظیمات</button>
+    </div>
+    <p class="small" id="best"></p>
+  </section>
+
+  <section class="screen dim" id="s-diff" hidden>
+    <h2 class="h2 cy">سطح سختی</h2>
+    <div class="row">
+      <div class="panel col">
+        <button class="btn" id="b-normal">معمولی</button>
+        <p class="small">۳ جان، دشمن‌های آرام‌تر</p>
+      </div>
+      <div class="panel col">
+        <button class="btn pk" id="b-hard">سخت</button>
+        <p class="small">۲ جان، دشمن بیشتر و ضربه‌های سنگین‌تر</p>
+      </div>
+    </div>
+    <button class="btn sm" data-back>بازگشت</button>
+  </section>
+
+  <section class="screen dim" id="s-cust" hidden>
+    <div class="cust">
+      <canvas id="prev" width="480" height="560"></canvas>
+      <div class="panel col" style="gap:14px">
+        <div class="opt"><b>اسکین</b>
+          <div class="seg" id="o-skin">
+            <button class="chip" data-v="normal">معمولی</button>
+            <button class="chip" data-v="halloween">ماسک هالووین</button>
+          </div></div>
+        <div class="opt"><b>ریش</b>
+          <div class="seg" id="o-beard">
+            <button class="chip" data-v="short">کوتاه</button>
+            <button class="chip" data-v="long">بلند</button>
+          </div></div>
+        <div class="opt"><b>رنگ کلاه</b>
+          <div class="seg" id="o-cap"></div></div>
+        <button class="btn pk sm" data-back>ذخیره و بازگشت</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen dim" id="s-set" hidden>
+    <h2 class="h2 cy">تنظیمات</h2>
+    <div class="panel col" style="min-width:min(320px,100%)">
+      <label class="tgl">موسیقی <button class="chip" id="t-mus"></button></label>
+      <label class="tgl">افکت صوتی <button class="chip" id="t-sfx"></button></label>
+      <label class="tgl">لرزش گوشی <button class="chip" id="t-vib"></button></label>
+      <label class="tgl">کیفیت گرافیک <button class="chip" id="t-q"></button></label>
+    </div>
+    <button class="btn sm" data-back>بازگشت</button>
+  </section>
+
+  <section class="screen dim" id="s-pause" hidden>
+    <h2 class="h2 cy">مکث</h2>
+    <div class="col">
+      <button class="btn pk" id="b-resume">ادامه</button>
+      <button class="btn" id="b-restart">شروع دوباره مرحله</button>
+      <button class="btn" id="b-psnd">صدا: روشن</button>
+      <button class="btn" id="b-quit">منوی اصلی</button>
+    </div>
+  </section>
+
+  <section class="screen dim" id="s-over" hidden>
+    <h2 class="h2">نیما شکست خورد!</h2>
+    <p class="stats" id="over-score">0</p>
+    <div class="row">
+      <button class="btn pk" id="b-retry">دوباره از همین مرحله</button>
+      <button class="btn" id="b-omenu">منوی اصلی</button>
+    </div>
+  </section>
+
+  <section class="screen dim" id="s-clear" hidden>
+    <h2 class="h2 cy" id="clear-t">مرحله تمام شد!</h2>
+    <p class="stats" id="clear-score">0</p>
+    <p class="sub" id="clear-sub"></p>
+    <button class="btn pk" id="b-next">مرحله بعد</button>
+  </section>
+
+  <section class="screen dim" id="s-win" hidden>
+    <h1 class="logo" style="font-size:clamp(48px,16vh,110px)"><span class="n">N</span><span class="t">2</span></h1>
+    <h2 class="h2 gd">نیما قهرمان شهر نئون شد!</h2>
+    <p class="stats" id="win-score">0</p>
+    <p class="small" id="win-best"></p>
+    <div class="row">
+      <button class="btn pk" id="b-again">بازی دوباره</button>
+      <button class="btn" id="b-wmenu">منوی اصلی</button>
+    </div>
+  </section>
+</div>
+<div id="rot" hidden><div class="ph"></div>گوشی را افقی کن</div>
+<div id="loading">N2</div>
