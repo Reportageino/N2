@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ir.neonline.n2'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'ir.neonline.n2'
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    signingConfigs {
+        n2 {
+            storeFile file('n2-release.jks')
+            storePassword 'n2neon2026'
+            keyAlias 'n2'
+            keyPassword 'n2neon2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.n2
+        }
+        debug {
+            signingConfig signingConfigs.n2
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
