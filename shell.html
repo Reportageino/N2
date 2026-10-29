@@ -1,0 +1,362 @@
+<title>NIMA: Neon Rampage</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Lalezar&family=Vazirmatn:wght@400;600;800&display=swap">
+<style>
+/* Layout: full-bleed game canvas; DOM screens float above it as neon arcade panels. Single dark look by design. */
+:root {
+  --ink: #07040f; --panel: rgba(16, 10, 36, 0.9); --panel2: #1d1446; --line: #3a2d7a;
+  --cyan: #25d6ff; --pink: #ff2bd6; --gold: #ffcf3f; --lime: #8dff6a; --text: #efeaff; --muted: #a59bd6;
+  --display: 'Lalezar', 'Vazirmatn', system-ui, sans-serif; --body: 'Vazirmatn', system-ui, sans-serif; --latin: 'Bungee', 'Impact', sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+[hidden] { display: none !important; }
+body { background: var(--ink); color: var(--text); font-family: var(--body); overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+#game { position: fixed; inset: 0; display: block; }
+button { font-family: var(--body); font-weight: 800; cursor: pointer; color: var(--text); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; direction: rtl;
+  padding-block: max(14px, env(safe-area-inset-top, 0px)) max(14px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.dim { background: radial-gradient(ellipse at center, rgba(20,8,48,0.55), rgba(5,2,14,0.88)); }
+.panel { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 22px 24px; box-shadow: 0 0 0 1px rgba(37,214,255,0.08), 0 18px 60px rgba(0,0,0,0.6), inset 0 0 40px rgba(123,92,255,0.12); max-height: 100%; overflow: auto; min-width: 0; }
+h2 { font-family: var(--display); font-weight: 400; font-size: clamp(28px, 5vw, 42px); margin: 0 0 6px; text-shadow: 0 0 18px rgba(255,43,214,0.6); text-wrap: balance; }
+.btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 22px; border-radius: 12px; border: 2px solid var(--cyan); background: linear-gradient(180deg, rgba(37,214,255,0.22), rgba(37,214,255,0.06)); font-size: 17px; transition: transform .08s, box-shadow .15s; }
+.btn:hover { box-shadow: 0 0 18px rgba(37,214,255,0.5); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px) scale(0.98); }
+.btn.pink { border-color: var(--pink); background: linear-gradient(180deg, rgba(255,43,214,0.28), rgba(255,43,214,0.06)); }
+.btn.gold { border-color: var(--gold); background: linear-gradient(180deg, rgba(255,207,63,0.28), rgba(255,207,63,0.06)); color: #fff6d8; }
+.btn.ghost { border-color: var(--line); background: transparent; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.row-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.coins { font-family: var(--latin); color: var(--gold); font-size: 16px; display: inline-flex; gap: 6px; align-items: center; }
+.coins::before { content: '●'; text-shadow: 0 0 8px var(--gold); }
+
+/* title */
+#title { flex-direction: column; justify-content: flex-start; padding-top: max(6vh, env(safe-area-inset-top, 0px)); text-align: center; background: linear-gradient(180deg, rgba(5,2,14,0.75), rgba(5,2,14,0) 60%); }
+.logo { font-family: var(--latin); line-height: .9; direction: ltr; }
+.logo .a { font-size: clamp(64px, 13vw, 132px); color: #fff; text-shadow: 0 0 8px var(--pink), 0 0 30px var(--pink), 4px 4px 0 #3a0a4a; letter-spacing: 2px; }
+.logo .b { font-size: clamp(20px, 4vw, 38px); color: var(--cyan); text-shadow: 0 0 14px var(--cyan); letter-spacing: 4px; }
+.fa-sub { font-family: var(--display); font-size: clamp(20px, 3.5vw, 28px); color: var(--muted); margin: 8px 0 18px; }
+#btn-start { font-size: 20px; padding: 12px 40px; animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 26px rgba(255,43,214,0.7); } }
+.hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+/* main menu */
+#menu { justify-content: flex-start; }
+#menu .panel { width: min(340px, 100%); margin-inline-start: 4vw; }
+#menu .panel .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+#menu .mini-logo { font-family: var(--latin); direction: ltr; font-size: 26px; color: #fff; text-shadow: 0 0 12px var(--pink); }
+
+/* map */
+#map { align-items: stretch; }
+#map .panel { width: min(1100px, 100%); display: flex; flex-direction: column; gap: 12px; }
+.map-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.diff { display: flex; gap: 6px; }
+.diff-btn { padding: 8px 14px; border-radius: 10px; border: 2px solid var(--line); background: transparent; font-size: 14px; }
+.diff-btn.on { border-color: var(--pink); background: rgba(255,43,214,0.2); box-shadow: 0 0 12px rgba(255,43,214,0.4); }
+#map-worlds { display: flex; flex-direction: column; gap: 14px; overflow: auto; min-height: 0; padding: 4px; }
+.world { border-radius: 14px; padding: 12px; border: 2px solid var(--line); background: linear-gradient(135deg, rgba(37,214,255,0.08), rgba(123,92,255,0.06)); }
+.world.w2 { background: linear-gradient(135deg, rgba(141,255,106,0.08), rgba(30,50,30,0.2)); }
+.world.w3 { background: linear-gradient(135deg, rgba(255,43,214,0.1), rgba(37,214,255,0.06)); }
+.world.w4 { background: linear-gradient(135deg, rgba(255,43,214,0.22), rgba(60,10,60,0.4)); border-color: var(--pink); }
+.world.locked { opacity: .55; }
+.world header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.world h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 24px; }
+.wname { font-family: var(--latin); font-size: 12px; color: var(--cyan); letter-spacing: 1px; direction: ltr; }
+.w2 .wname { color: var(--lime); } .w3 .wname, .w4 .wname { color: var(--pink); }
+.path { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.node { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border-radius: 12px; border: 2px solid var(--line); background: rgba(10,6,24,0.7); min-height: 82px; min-width: 0; }
+.node .num { font-family: var(--latin); font-size: 20px; }
+.node .nm { font-size: 12px; font-weight: 600; color: var(--muted); text-align: center; line-height: 1.3; }
+.node .stars { font-size: 13px; color: var(--gold); letter-spacing: 1px; direction: ltr; } .node .stars i { color: rgba(255,255,255,0.15); font-style: normal; }
+.node .bossnm { font-size: 10px; color: var(--pink); }
+.node.cleared { border-color: rgba(37,214,255,0.6); }
+.node.current { border-color: var(--gold); box-shadow: 0 0 16px rgba(255,207,63,0.5); animation: pulse 1.6s infinite; }
+.node.boss { border-style: double; border-width: 4px; }
+.node.locked { opacity: .45; cursor: not-allowed; }
+.node:not(.locked):hover { transform: translateY(-2px); }
+.node.aryan { width: 100%; flex-direction: row; justify-content: center; gap: 14px; min-height: 64px; }
+.node.aryan .num { color: var(--pink); font-size: 30px; text-shadow: 0 0 12px var(--pink); }
+.node.aryan .nm { font-size: 16px; color: var(--text); }
+
+/* shop */
+#shop .panel { width: min(1060px, 100%); height: min(640px, 100%); display: grid; grid-template-columns: 260px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 12px 18px; }
+.shop-head { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-col { display: flex; flex-direction: column; align-items: center; gap: 6px; background: rgba(5,2,14,0.5); border-radius: 14px; border: 2px solid var(--line); padding: 10px; min-height: 0; }
+#shop-hero { width: 240px; max-width: 100%; height: auto; aspect-ratio: 240 / 300; }
+#shop-tryon { font-size: 13px; color: var(--muted); }
+.shop-main { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+#shop-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+#shop-tabs button { padding: 7px 12px; border-radius: 999px; border: 2px solid var(--line); background: transparent; font-size: 14px; }
+#shop-tabs button.on { border-color: var(--cyan); background: rgba(37,214,255,0.18); }
+#shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; overflow: auto; min-height: 0; padding: 2px; }
+.card .prev.wprev { aspect-ratio: 120 / 96; background: radial-gradient(circle at 50% 60%, rgba(123,92,255,0.25), rgba(8,4,20,0.6)); border: 1px solid rgba(255,255,255,0.06); }
+.paint-weapons { grid-column: 1 / -1; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.pw { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border-radius: 12px; border: 2px solid var(--line); background: rgba(10,6,24,0.7); font-size: 11px; }
+.pw canvas { width: 64px; height: 34px; } .pw.on { border-color: var(--cyan); box-shadow: 0 0 12px rgba(37,214,255,0.4); }
+.paint-big { grid-column: 1 / -1; width: 100%; height: auto; aspect-ratio: 360 / 130; border-radius: 14px; border: 2px solid var(--line); background: radial-gradient(circle at 50% 60%, rgba(123,92,255,0.3), rgba(8,4,20,0.8)); }
+.swatches { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.sw { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border-radius: 12px; border: 2px solid var(--line); background: rgba(10,6,24,0.7); }
+.sw i { width: 34px; height: 34px; border-radius: 50%; border: 3px solid #1a1229; box-shadow: inset 0 3px 6px rgba(255,255,255,0.35); }
+.sw b { font-size: 13px; } .sw small { font-size: 11px; color: var(--gold); } .sw.on { border-color: var(--cyan); box-shadow: 0 0 12px rgba(37,214,255,0.4); } .sw.on small { color: var(--cyan); }
+.paint-note { grid-column: 1 / -1; color: var(--muted); font-size: 12px; margin: 0; }
+.continue-card { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--lime); background: rgba(141,255,106,0.08); font-size: 13px; }
+.continue-card b { font-size: 15px; } .lives { color: #ff3f6a; letter-spacing: 2px; font-size: 18px; }
+.card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; border: 2px solid var(--line); background: rgba(10,6,24,0.7); cursor: pointer; }
+.card.equipped { border-color: var(--cyan); box-shadow: 0 0 14px rgba(37,214,255,0.35); }
+.card .prev { width: 100%; height: auto; aspect-ratio: 120 / 96; background: radial-gradient(circle, rgba(123,92,255,0.25), rgba(0,0,0,0)); border-radius: 10px; }
+.card .info b { display: block; font-size: 15px; } .card .info small { color: var(--muted); font-size: 12px; line-height: 1.5; display: block; min-height: 2.8em; }
+.card .buy { margin-top: auto; min-height: 38px; border-radius: 10px; border: 2px solid var(--gold); background: rgba(255,207,63,0.15); font-size: 14px; }
+.card .buy.eq { border-color: var(--cyan); background: rgba(37,214,255,0.15); }
+.card .buy:disabled { opacity: .5; cursor: default; }
+.card .buy .coin { color: var(--gold); }
+
+/* settings */
+#settings .panel { width: min(620px, 100%); }
+.set-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 12px 16px; align-items: center; margin: 14px 0; }
+.set-grid label { font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--pink); }
+input[type=checkbox] { width: 22px; height: 22px; accent-color: var(--cyan); }
+select { font: inherit; color: var(--text); background: var(--panel2); border: 2px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+#keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 6px 14px; margin: 10px 0; }
+.keyrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; }
+.keybtn { min-width: 96px; padding: 6px 10px; border-radius: 8px; border: 2px solid var(--line); background: rgba(255,255,255,0.05); font-family: var(--latin); font-size: 12px; direction: ltr; }
+.keybtn.wait { border-color: var(--gold); color: var(--gold); font-family: var(--body); }
+.danger { border-color: #ff3f4f !important; background: rgba(255,63,79,0.12) !important; }
+#reset-confirm { margin-top: 10px; padding: 12px; border-radius: 12px; border: 2px solid #ff3f4f; }
+h4 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 14px 0 4px; color: var(--cyan); }
+
+/* help */
+#help .panel { width: min(720px, 100%); }
+.help-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 12px 0; }
+.help-grid div { background: rgba(255,255,255,0.04); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.help-grid kbd { font-family: var(--latin); font-size: 12px; color: var(--gold); background: rgba(255,207,63,0.12); padding: 2px 7px; border-radius: 6px; direction: ltr; display: inline-block; }
+.help-tips { color: var(--muted); font-size: 14px; line-height: 1.9; max-width: 65ch; }
+
+/* results / defeat / ending */
+#results .panel, #defeat .panel, #ending .panel, #pause .panel { width: min(460px, 100%); text-align: center; }
+#res-stage { color: var(--muted); margin-bottom: 8px; }
+#res-stars { font-size: 46px; letter-spacing: 4px; margin: 6px 0 12px; direction: ltr; }
+#res-stars span { color: rgba(255,255,255,0.15); display: inline-block; }
+#res-stars span.on { color: var(--gold); text-shadow: 0 0 16px var(--gold); animation: pop .45s backwards; }
+@keyframes pop { from { transform: scale(2.4) rotate(-30deg); opacity: 0; } }
+#res-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; text-align: start; }
+#res-rows .row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 14px; }
+#res-rows b { font-variant-numeric: tabular-nums; } #res-rows b.ok { color: var(--lime); } #res-rows b.no { color: #ff7a8a; }
+.big-score { font-family: var(--latin); font-size: 34px; color: #fff; text-shadow: 0 0 14px var(--pink); margin: 6px 0; direction: ltr; }
+#ending h2 { color: var(--gold); text-shadow: 0 0 22px var(--gold); }
+
+/* touch controls */
+#touch { position: fixed; inset: 0; z-index: 5; pointer-events: none; }
+#stick-zone { position: absolute; left: 0; bottom: 0; width: 46%; height: 62%; pointer-events: auto; }
+#stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(37,214,255,0.4); background: rgba(37,214,255,0.08); left: 110px; top: 70%; transition: opacity .2s; opacity: .55; }
+#stick.on { opacity: 1; }
+#knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #8ff0ff, #1a8fd6); box-shadow: 0 0 16px rgba(37,214,255,0.7); }
+.tbtns { position: absolute; right: max(14px, env(safe-area-inset-right, 0px)); bottom: max(14px, env(safe-area-inset-bottom, 0px)); width: 300px; height: 230px; pointer-events: none; }
+.tb { position: absolute; pointer-events: auto; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(16,10,36,0.55); font-family: var(--display); font-weight: 400; font-size: 15px; color: #fff; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.tb.down { background: rgba(255,43,214,0.45); border-color: var(--pink); transform: scale(0.94); }
+.tb.big { width: 86px; height: 86px; right: 22px; bottom: 22px; border-color: var(--pink); font-size: 18px; }
+.tb.m { width: 64px; height: 64px; }
+.tb.s { width: 50px; height: 50px; font-size: 12px; }
+#btn-pause-touch { position: fixed; z-index: 6; top: max(10px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: rgba(16,10,36,0.6); font-size: 16px; }
+#toast { position: fixed; z-index: 30; left: 50%; bottom: 30px; transform: translateX(-50%); background: var(--panel2); border: 2px solid var(--cyan); border-radius: 12px; padding: 10px 18px; opacity: 0; pointer-events: none; direction: rtl; }
+#toast.show { animation: toast 1.8s; }
+@keyframes toast { 10%, 80% { opacity: 1; transform: translate(-50%, -8px); } }
+#rotate { position: fixed; z-index: 40; top: 0; left: 0; right: 0; padding: 8px 16px; text-align: center; background: rgba(255,43,214,0.85); font-size: 14px; direction: rtl; display: none; }
+@media (orientation: portrait) and (max-width: 760px) { #rotate { display: block; } }
+@media (max-width: 760px) {
+  #shop .panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); height: 100%; }
+  .hero-col { flex-direction: row; } #shop-hero { width: 110px; }
+  .path { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; } .node { min-height: 66px; padding: 6px 2px; } .node .nm { font-size: 10px; }
+  #menu .panel { margin-inline-start: 0; }
+  .set-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-height: 520px) {
+  #shop .panel { grid-template-columns: 150px minmax(0, 1fr); height: 100%; }
+  #shop-hero { width: 130px; } .hero-col { padding: 6px; }
+  #shop-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .card .prev { aspect-ratio: 120 / 70; } .card .info small { min-height: 0; }
+  #map .panel { padding: 10px 12px; } .map-top h2 { font-size: 24px; }
+}
+@media (max-height: 460px) { .panel { padding: 14px 16px; } h2 { font-size: 26px; } .btn { min-height: 40px; padding: 6px 16px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<canvas id="game" aria-label="NIMA: Neon Rampage"></canvas>
+<div id="safe-probe" style="position:fixed;visibility:hidden;pointer-events:none;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)"></div>
+<div id="rotate">برای تجربه بهتر، گوشی را افقی نگه دار</div>
+
+<section id="title" class="screen">
+  <div class="logo"><div class="a">NIMA</div><div class="b">NEON RAMPAGE</div></div>
+  <div class="fa-sub">نیما در شهر نئون</div>
+  <button id="btn-start" class="btn pink">شروع</button>
+  <div class="row-btns" style="margin-top:10px"><button class="btn ghost btn-install" hidden>⬇ نصب بازی</button></div>
+  <div class="hint">صدا با اولین لمس روشن می‌شود</div>
+</section>
+
+<section id="menu" class="screen" hidden>
+  <div class="panel">
+    <div class="top"><span class="mini-logo">NIMA</span><span class="coins" id="menu-coins">۰</span></div>
+    <div class="stack">
+      <div class="continue-card" id="continue-card" hidden><b id="cont-title"></b><span id="cont-sub"></span><span class="lives" id="cont-lives"></span></div>
+      <button class="btn pink" id="btn-continue" hidden>▶ ادامه بازی</button>
+      <button class="btn" id="btn-play">نقشه مراحل</button>
+      <button class="btn ghost" id="btn-new">بازی جدید از اول</button>
+      <div id="new-confirm" class="continue-card" style="border-color:#ff3f4f;background:rgba(255,63,79,0.1)" hidden>
+        <span>همه مراحل، ستاره‌ها و جون‌ها از اول شروع می‌شوند. سکه‌ها و خریدهای فروشگاه می‌مانند.</span>
+        <div class="row-btns"><button class="btn danger" id="btn-new-yes">بله، از اول</button><button class="btn ghost" id="btn-new-no">نه</button></div>
+      </div>
+      <button class="btn gold" id="btn-shop">فروشگاه</button>
+      <button class="btn" id="btn-settings">تنظیمات</button>
+      <button class="btn ghost" id="btn-help">راهنمای کنترل</button>
+      <button class="btn ghost btn-install" hidden>⬇ نصب روی گوشی یا کامپیوتر</button>
+      <button class="btn ghost btn-full" hidden>⛶ تمام‌صفحه</button>
+    </div>
+  </div>
+</section>
+
+<section id="map" class="screen dim" hidden>
+  <div class="panel">
+    <div class="map-top">
+      <h2>نقشه شهر</h2>
+      <div class="diff"><button class="diff-btn" data-diff="normal">معمولی</button><button class="diff-btn" data-diff="hard">سخت</button></div>
+      <span class="coins" id="map-coins">۰</span>
+      <span style="color:var(--gold)">★ <span id="map-stars"></span></span>
+      <button class="btn ghost" data-back="menu">بازگشت</button>
+    </div>
+    <div id="map-worlds"></div>
+  </div>
+</section>
+
+<section id="shop" class="screen dim" hidden>
+  <div class="panel">
+    <div class="shop-head"><h2>فروشگاه</h2><span class="coins" id="shop-coins">۰</span><button class="btn ghost" data-back="auto">بازگشت</button></div>
+    <div class="hero-col"><canvas id="shop-hero" width="240" height="300"></canvas><span id="shop-tryon"></span></div>
+    <div class="shop-main"><div id="shop-tabs"></div><div id="shop-grid"></div></div>
+  </div>
+</section>
+
+<section id="settings" class="screen dim" hidden>
+  <div class="panel">
+    <h2>تنظیمات</h2>
+    <div class="set-grid">
+      <label for="set-music">موسیقی</label><input type="range" id="set-music" min="0" max="1" step="0.05">
+      <label for="set-sfx">افکت‌های صوتی</label><input type="range" id="set-sfx" min="0" max="1" step="0.05">
+      <label for="set-shake">لرزش صفحه</label><input type="checkbox" id="set-shake">
+      <label for="set-touch">کنترل لمسی</label><select id="set-touch"><option value="auto">خودکار</option><option value="on">همیشه روشن</option><option value="off">خاموش</option></select>
+      <label for="set-fps">نمایش FPS</label><input type="checkbox" id="set-fps">
+    </div>
+    <h4>کلیدها (برای تغییر، روی کلید بزن)</h4>
+    <div id="keys"></div>
+    <div class="row-btns">
+      <button class="btn ghost" id="btn-keys-reset">کلیدهای پیش‌فرض</button>
+      <button class="btn ghost danger" id="btn-reset">پاک کردن پیشرفت</button>
+      <button class="btn" data-back="auto">بازگشت</button>
+    </div>
+    <div id="reset-confirm" hidden>
+      <p>همه مراحل، ستاره‌ها، سکه‌ها و خریدها پاک می‌شوند. مطمئنی؟</p>
+      <div class="row-btns"><button class="btn danger" id="btn-reset-yes">بله، پاک کن</button><button class="btn ghost" id="btn-reset-no">نه</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="help" class="screen dim" hidden>
+  <div class="panel">
+    <h2>راهنمای کنترل</h2>
+    <div class="help-grid">
+      <div><kbd>A D</kbd> <kbd>← →</kbd> حرکت</div>
+      <div><kbd>W S</kbd> <kbd>↑ ↓</kbd> حرکت در عمق</div>
+      <div><kbd>Shift</kbd> دویدن</div>
+      <div><kbd>J</kbd> مشت / کمبو ۴ ضربه / شلیک</div>
+      <div><kbd>K</kbd> ضربه سنگین</div>
+      <div><kbd>L</kbd> قابلیت ویژه (۵۰٪ انرژی)</div>
+      <div><kbd>Space</kbd> پرش (در هوا J: لگد پروازی)</div>
+      <div><kbd>C</kbd> جاخالی</div>
+      <div><kbd>V</kbd> دفاع (نگه دار)</div>
+      <div><kbd>E</kbd> برداشتن / پرتاب سلاح</div>
+      <div><kbd>Q</kbd> تعویض مشت، سلاح سرد، سلاح گرم</div>
+      <div><kbd>Esc</kbd> توقف</div>
+    </div>
+    <div class="help-tips">
+      وقتی دشمن تلوتلو می‌خورد یا جانش کم است، <b>K</b> را بزن تا فینیشر اجرا شود.
+      سلاح سرد بعد از چند ضربه می‌شکند و گلوله سلاح گرم محدود است، پس برای باس‌ها نگهشان دار.
+      جعبه‌ها را بشکن: کباب و چای جان می‌دهند، نوشابه انرژی قابلیت ویژه را پر می‌کند.
+    </div>
+    <div class="row-btns"><button class="btn" data-back="menu">بازگشت</button></div>
+  </div>
+</section>
+
+<section id="install-help" class="screen dim" hidden>
+  <div class="panel" style="width:min(520px,100%)">
+    <h2>نصب بازی</h2>
+    <p class="help-tips"><b>آیفون و آیپد (Safari):</b> دکمه اشتراک‌گذاری <span dir="ltr">⬆︎</span> پایین صفحه را بزن، بعد «Add to Home Screen» یا «افزودن به صفحه اصلی».</p>
+    <p class="help-tips"><b>اندروید (Chrome):</b> منوی سه‌نقطه ← «نصب برنامه» یا «Add to Home screen».</p>
+    <p class="help-tips"><b>کامپیوتر (Chrome / Edge):</b> آیکون نصب در نوار آدرس، یا منو ← «Install NIMA».</p>
+    <p class="help-tips">نصب فقط از نسخه منتشرشده روی GitHub Pages کار می‌کند. بعد از نصب، بازی بدون اینترنت هم اجرا می‌شود.</p>
+    <div class="row-btns"><button class="btn" data-back="menu">بازگشت</button></div>
+  </div>
+</section>
+
+<section id="pause" class="screen dim" hidden>
+  <div class="panel stack">
+    <h2>توقف</h2>
+    <button class="btn pink" id="btn-resume">ادامه</button>
+    <button class="btn" id="btn-restart">شروع دوباره مرحله</button>
+    <button class="btn" id="btn-pause-settings">تنظیمات</button>
+    <button class="btn ghost" id="btn-quit">خروج به نقشه</button>
+  </div>
+</section>
+
+<section id="results" class="screen dim" hidden>
+  <div class="panel">
+    <h2 id="res-title">مرحله تمام شد!</h2>
+    <div id="res-stage"></div>
+    <div id="res-stars"></div>
+    <div id="res-rows"></div>
+    <div class="row-btns">
+      <button class="btn pink" id="btn-res-next">مرحله بعد</button>
+      <button class="btn" id="btn-res-retry">دوباره</button>
+      <button class="btn gold" id="btn-res-shop">فروشگاه</button>
+      <button class="btn ghost" id="btn-res-map">نقشه</button>
+    </div>
+  </div>
+</section>
+
+<section id="defeat" class="screen dim" hidden>
+  <div class="panel">
+    <h2>نیما زمین خورد!</h2>
+    <p style="color:var(--muted)">همه جون‌ها تمام شد. «دوباره» از آخرین نقطه ذخیره ادامه می‌دهد و یک جون تازه می‌گیری.</p>
+    <p style="color:var(--muted)">نصف سکه‌های این مرحله برایت ماند: <span class="coins" id="def-coins"></span></p>
+    <div class="big-score" id="def-score">0</div>
+    <div class="row-btns"><button class="btn pink" id="btn-def-retry">دوباره تلاش کن</button><button class="btn ghost" id="btn-def-map">نقشه</button></div>
+  </div>
+</section>
+
+<section id="ending" class="screen dim" hidden>
+  <div class="panel">
+    <h2>کینگ آریان شکست خورد!</h2>
+    <p>شهر نئون دوباره آرام شد. تاج شهر حالا در فروشگاه برای نیما باز است.</p>
+    <div style="color:var(--muted)">مجموع بهترین امتیازها</div>
+    <div class="big-score" id="end-score">0</div>
+    <p>جایزه: <span class="coins" id="end-coins"></span></p>
+    <div class="row-btns"><button class="btn gold" id="btn-end-map">بازگشت به نقشه</button></div>
+  </div>
+</section>
+
+<div id="touch" hidden>
+  <div id="stick-zone"><div id="stick"><div id="knob"></div></div></div>
+  <div class="tbtns">
+    <button class="tb big" data-act="attack">مشت</button>
+    <button class="tb m" data-act="heavy" style="right:118px;bottom:16px">سنگین</button>
+    <button class="tb m" data-act="jump" style="right:36px;bottom:118px">پرش</button>
+    <button class="tb m" data-act="dodge" style="right:118px;bottom:96px">جاخالی</button>
+    <button class="tb s" data-act="special" style="right:196px;bottom:30px">ویژه</button>
+    <button class="tb s" data-act="block" style="right:186px;bottom:100px">دفاع</button>
+    <button class="tb s" data-act="pickup" style="right:122px;bottom:170px">بردار</button>
+    <button class="tb s" data-act="switch" style="right:58px;bottom:196px">سلاح</button>
+  </div>
+</div>
+<button id="btn-pause-touch" hidden aria-label="توقف">❚❚</button>
+<div id="toast"></div>
