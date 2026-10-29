@@ -174,6 +174,14 @@ h4 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 14p
   #menu .panel { margin-inline-start: 0; }
   .set-grid { grid-template-columns: minmax(0, 1fr); }
 }
+@media (max-height: 520px) and (orientation: landscape) {
+  #menu .panel { width: min(560px, 100%); padding: 12px 14px; }
+  #menu .panel .top { margin-bottom: 8px; }
+  #menu .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #menu .stack .continue-card { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 10px; }
+  #menu .stack .btn { min-height: 40px; padding: 6px 10px; font-size: 15px; }
+  #menu #btn-continue { grid-column: 1 / -1; }
+}
 @media (max-height: 520px) {
   #shop .panel { grid-template-columns: 150px minmax(0, 1fr); height: 100%; }
   #shop-hero { width: 130px; } .hero-col { padding: 6px; }
@@ -4164,10 +4172,14 @@ const UI = {
 
   /* ---------------- TOUCH CONTROLS ---------------- */
   isTouch() { const m = Save.data.settings.touch; return m === 'on' || (m === 'auto' && (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window)); },
+  /* called every frame: only touch the DOM when something actually changes (DOM writes force layout on phones) */
   updateTouchVisibility() {
-    const on = this.isTouch() && G.mode === 'play' && !this.screen;
-    $('#touch').hidden = !on; Input.touch.active = on;
-    $('#btn-pause-touch').hidden = !on;
+    if (this._touchPref === undefined || this._touchSetting !== Save.data.settings.touch) { this._touchSetting = Save.data.settings.touch; this._touchPref = this.isTouch(); }
+    const on = this._touchPref && G.mode === 'play' && !this.screen;
+    if (on === this._touchOn) return;
+    this._touchOn = on;
+    if (!this._tEl) { this._tEl = $('#touch'); this._pEl = $('#btn-pause-touch'); }
+    this._tEl.hidden = !on; this._pEl.hidden = !on; Input.touch.active = on;
   },
   initTouch() {
     const stick = $('#stick'), knob = $('#knob'), zone = $('#stick-zone');
@@ -4300,17 +4312,23 @@ const UI = {
 'use strict';
 
 const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+const ctx = canvas.getContext('2d', { alpha: false });
 let view = { s: 1, ox: 0, oy: 0, dpr: 1 };
 let menuBg = null, showcase = null, vignette = null;
 let fpsT = 0, fpsN = 0, fps = 60;
 /* adaptive quality: drop internal resolution when frames get slow, raise it back when there is headroom */
 const Quality = { scale: 1, slowT: 0, fastT: 0, ema: 16.7 };
 
-function resize() {
-  const baseDpr = Math.min(window.devicePixelRatio || 1, 2);
-  const dpr = Math.max(0.6, baseDpr * Quality.scale);
+let lastSize = '';
+function resize(force) {
   const W0 = window.innerWidth, H0 = window.innerHeight;
+  const key = W0 + 'x' + H0 + '@' + Quality.scale;
+  if (!force && key === lastSize) return;          // address-bar jiggle on phones: ignore
+  lastSize = key;
+  // cap: the game is drawn at 960x540, so more than ~1.2 device pixels per game pixel is wasted fill-rate
+  const fitS = Math.min(W0 / 960, H0 / 540);
+  const maxDpr = Math.max(0.75, 1.2 / Math.max(fitS, 0.01));
+  const dpr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, 2, maxDpr) * Quality.scale);
   canvas.width = Math.round(W0 * dpr); canvas.height = Math.round(H0 * dpr);
   canvas.style.width = W0 + 'px'; canvas.style.height = H0 + 'px';
   // keep the playfield + HUD inside the phone's safe area (notch / home bar)
@@ -4320,7 +4338,7 @@ function resize() {
   CONFIG.W = Math.round(M.clamp(CONFIG.H * w / h, 960, 1280));
   const s = Math.min(w / CONFIG.W, h / CONFIG.H);
   view = { s, ox: L + (w - CONFIG.W * s) / 2, oy: T + (h - CONFIG.H * s) / 2, dpr };
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'medium';
   buildVignette();
 }
 /* vignette as cheap edge bands (no full-screen blit) */
@@ -4336,12 +4354,16 @@ function drawVignette() {
   ctx.fillStyle = vignette.R; ctx.fillRect(CONFIG.W - 150, 0, 150, CONFIG.H);
   ctx.fillStyle = vignette.B; ctx.fillRect(0, CONFIG.H - 70, CONFIG.W, 70);
 }
-function adaptQuality(frameMs) {
-  Quality.ema = Quality.ema * 0.95 + frameMs * 0.05;
-  if (Quality.ema > 18.5) { Quality.slowT += frameMs / 1000; Quality.fastT = 0; }
-  else if (Quality.ema < 15.5) { Quality.fastT += frameMs / 1000; Quality.slowT = 0; }
-  if (Quality.slowT > 1.5 && Quality.scale > 0.55) { Quality.scale = Math.max(0.55, Quality.scale - 0.15); Quality.slowT = 0; G.lowFx = Quality.scale < 0.8; resize(); }
-  if (Quality.fastT > 8 && Quality.scale < 1) { Quality.scale = Math.min(1, Quality.scale + 0.1); Quality.fastT = 0; G.lowFx = Quality.scale < 0.8; resize(); }
+function adaptQuality(workMs, intervalMs) {
+  // judge both our JS work and the real frame interval (GPU-bound phones only show up in the interval)
+  if (Quality.grace > 0) { Quality.grace--; return; }
+  Quality.ema = Quality.ema * 0.93 + workMs * 0.07;
+  Quality.iv = (Quality.iv || FRAME_MS) * 0.93 + intervalMs * 0.07;
+  if (Quality.ema > 13 || Quality.iv > 21) { Quality.slowT += 1 / 60; Quality.fastT = 0; }
+  else if (Quality.ema < 6 && Quality.iv < 17.8) { Quality.fastT += 1 / 60; Quality.slowT = 0; }
+  else { Quality.slowT = Math.max(0, Quality.slowT - 1 / 120); }
+  if (Quality.slowT > 1.2 && Quality.scale > 0.5) { Quality.scale = Math.max(0.5, +(Quality.scale - 0.15).toFixed(2)); Quality.slowT = 0; Quality.ups = 0; Quality.grace = 90; G.lowFx = Quality.scale < 0.8; resize(true); }
+  if (Quality.fastT > 12 && Quality.scale < 1 && (Quality.ups || 0) < 2) { Quality.scale = Math.min(1, +(Quality.scale + 0.1).toFixed(2)); Quality.fastT = 0; Quality.ups = (Quality.ups || 0) + 1; Quality.grace = 90; G.lowFx = Quality.scale < 0.8; resize(true); }
 }
 
 function updateCamera(dt) {
@@ -4475,10 +4497,16 @@ function renderMenu() {
   ctx.fillStyle = 'rgba(8,4,20,0.3)'; ctx.fillRect(0, 0, W, H);
 }
 
-let last = performance.now();
+let last = performance.now(), nextDue = 0;
+/* 90/120 Hz phones: render at 60 so the GPU isn't doing double the work (and the phone doesn't heat up and throttle) */
+const FRAME_MS = 1000 / 60;
 function frame(now) {
+  requestAnimationFrame(frame);
+  if (now < nextDue - 2) return;
+  nextDue = Math.max(nextDue + FRAME_MS, now);
   const rawMs = now - last;
   const realDt = Math.min(0.05, rawMs / 1000); last = now;
+  const t0 = performance.now();
   try { update(realDt); } catch (err) { console.error(err); }
   for (const a in Input.buffer) Input.buffer[a] -= realDt * (G.mode === 'play' ? Math.max(0.3, G.timeScale) : 1);
   Input.pressed = {};
@@ -4493,10 +4521,9 @@ function frame(now) {
   ctx.restore();
   if (UI.screen === 'shop') UI.drawShopHero();
   fpsN++; fpsT += realDt; if (fpsT > 0.5) { fps = Math.round(fpsN / fpsT); fpsN = 0; fpsT = 0; }
-  if (G.mode === 'play' && rawMs < 250 && !document.hidden) adaptQuality(rawMs);
+  if (G.mode === 'play' && rawMs < 250 && !document.hidden) adaptQuality(performance.now() - t0, rawMs);
   if (Save.data.settings.fps) { ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0); ctx.fillStyle = '#8dff6a'; ctx.font = '12px monospace'; ctx.fillText(`${fps} FPS · ${Math.round(Quality.scale * 100)}%`, 8, window.innerHeight - 8); }
   UI.updateTouchVisibility();
-  requestAnimationFrame(frame);
 }
 
 /* ---------- PWA: offline cache + install prompt ---------- */
@@ -4521,7 +4548,9 @@ const PWA = {
 function boot() {
   Save.load(); Input.init(Save.data.keys); FX.init(); HeadArt.init();
   G.diff = DIFF[Save.data.difficulty];
-  resize(); window.addEventListener('resize', resize);
+  resize(true);
+  let rT = 0; const onResize = () => { clearTimeout(rT); rT = setTimeout(() => resize(), 120); };
+  window.addEventListener('resize', onResize); window.addEventListener('orientationchange', () => setTimeout(() => resize(true), 300));
   PWA.init();
   UI.init(); UI.show('title');
   if (document.fonts) document.fonts.ready.then(() => { menuBg = null; });

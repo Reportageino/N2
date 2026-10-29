@@ -173,6 +173,14 @@ h4 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 14p
   #menu .panel { margin-inline-start: 0; }
   .set-grid { grid-template-columns: minmax(0, 1fr); }
 }
+@media (max-height: 520px) and (orientation: landscape) {
+  #menu .panel { width: min(560px, 100%); padding: 12px 14px; }
+  #menu .panel .top { margin-bottom: 8px; }
+  #menu .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #menu .stack .continue-card { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 10px; }
+  #menu .stack .btn { min-height: 40px; padding: 6px 10px; font-size: 15px; }
+  #menu #btn-continue { grid-column: 1 / -1; }
+}
 @media (max-height: 520px) {
   #shop .panel { grid-template-columns: 150px minmax(0, 1fr); height: 100%; }
   #shop-hero { width: 130px; } .hero-col { padding: 6px; }
