@@ -5,7 +5,7 @@
 set -e
 cd "$(dirname "$0")"
 mkdir -p dist
-ORDER="core assets rig creatures data combat world ui main"
+ORDER="core assets rig creatures terrain data combat world scenery ui main"
 JS=""
 for f in $ORDER; do JS="$JS src/$f.js"; done
 { cat src/shell.html; echo '<script>'; cat $JS; echo '</script>'; } > dist/artifact.html
