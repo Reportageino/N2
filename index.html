@@ -242,7 +242,7 @@ button.padfocus, select.padfocus, input.padfocus { outline: 3px solid #ffcf3f !i
         <span>این مرحله از اول شروع می‌شود. نقشه، مراحل باز شده و ستاره‌ها دست نمی‌خورند؛ برای مراحل قبلی از «نقشه مراحل» استفاده کن.</span>
         <div class="row-btns"><button class="btn gold" id="btn-new-yes">بله، از اول همین مرحله</button><button class="btn ghost" id="btn-new-no">نه</button></div>
       </div>
-      <button class="btn gold" id="btn-shop">فروشگاه</button>
+      <button class="btn gold" id="btn-shop" hidden>فروشگاه</button>
       <button class="btn" id="btn-settings">تنظیمات</button>
       <button class="btn ghost" id="btn-help">راهنمای کنترل</button>
       <button class="btn ghost btn-install" hidden>⬇ نصب روی گوشی یا کامپیوتر</button>
@@ -359,7 +359,7 @@ button.padfocus, select.padfocus, input.padfocus { outline: 3px solid #ffcf3f !i
     <div class="row-btns">
       <button class="btn pink" id="btn-res-next">مرحله بعد</button>
       <button class="btn" id="btn-res-retry">دوباره</button>
-      <button class="btn gold" id="btn-res-shop">فروشگاه</button>
+      <button class="btn gold" id="btn-res-shop" hidden>فروشگاه</button>
       <button class="btn ghost" id="btn-res-map">نقشه</button>
     </div>
   </div>
@@ -2584,7 +2584,8 @@ const MOVES = {
   uppercut: { anim: 'uppercut', t: [0.16, 0.1, 0.36], dmg: 42, part: 'fh', r: 18, kb: 'launch', sfx: 'heavy', poise: 99, push: 160, shake: 10, slowmo: true },
   stomp:    { anim: 'stomp', t: [0.14, 0.08, 0.22], dmg: 16, part: 'ff', r: 18, kb: 'flinch', sfx: 'heavy', poise: 0, push: 0, shake: 8, hitsDown: true },
   spin:     { anim: 'spin', t: [0.08, 0.5, 0.16], dmg: 16, part: 'area', r: 78, kb: 'knockdown', sfx: 'heavy', poise: 99, push: 300, shake: 5, rehit: 0.17 },
-  throw:    { anim: 'throw', t: [0.12, 0.06, 0.2], dmg: 0, part: 'none', sfx: 'throw' },
+  gunbash:  { anim: 'heavy', t: [0.1, 0.08, 0.22], dmg: 15, part: 'fh', r: 20, kb: 'knockback', sfx: 'heavy', poise: 26, push: 300, shake: 4, hitsDown: true },
+  throw:    { anim: 'throw', t: [0.17, 0.07, 0.24], dmg: 0, part: 'none', sfx: 'throw' },
 };
 const COMBO = ['jab', 'cross', 'hook', 'kick'];
 
@@ -2844,6 +2845,10 @@ const MERCHANTS = {
   5: { name: 'مجری سیرک', stall: '#ff3f6a', look: { skin: '#f0c09a', skinD: '#d09a78', beard: true, beardC: '#2a1a12', hair: 'short', hairC: '#2a1a12', hat: 'tophat', hatC: '#a3122e', outfit: { shirt: 'jacket', c1: '#a3122e', c2: '#ffcf3f', c3: '#ffcf3f', tee: '#ffffff', sleeve: 'solid' }, pants: '#1a1424', pantsD: '#120e1a', shoe: '#120e12', eyes: 'normal' } },
   6: { name: 'فروشنده هولوگرامی', stall: '#ff2bd6', look: { skin: '#9ff6ff', skinD: '#5fd0e8', beard: false, hair: 'none', hat: 'none', outfit: { shirt: 'hoodie', c1: '#1c1a33', c2: '#25d6ff', c3: '#ff2bd6', tee: '#1c1a33', sleeve: 'solid' }, pants: '#1c1a33', pantsD: '#141228', shoe: '#25d6ff', eyes: 'visor', visorC: '#25d6ff' } },
 };
+/* the 8 weapons Nima has hand-drawn sheets for; the others stay in the data (enemies still use them)
+   but anything Nima could pick up or buy is swapped for its closest hand-drawn sibling */
+const WEAPON_ALIAS = { katana: 'stick', machete: 'stick', pipe: 'bat', sledge: 'axe', launcher: 'shotgun', plasma: 'smg' };   // katana: back in a later version
+const weaponFor = id => WEAPON_ALIAS[id] || id;
 /* offers a merchant can stock. price is in in-game points (✦). min = first stage it can appear */
 const MERCH_POOL = [
   { kind: 'melee', id: 'stick', price: 2, min: 1 }, { kind: 'melee', id: 'machete', price: 3, min: 2 }, { kind: 'melee', id: 'bat', price: 4, min: 1 },
@@ -2855,7 +2860,7 @@ const MERCH_POOL = [
   { kind: 'food', id: 'kebab', price: 3, min: 1 }, { kind: 'food', id: 'tea', price: 1, min: 1 }, { kind: 'food', id: 'energy', price: 3, min: 2 },
   { kind: 'heart', id: 'heart', price: 12, min: 3 },
 ];
-const LEGEND_OFFER = { kind: 'gun', id: 'plasma', price: 30, min: 8, chance: 0.1 };
+const LEGEND_OFFER = { kind: 'gun', id: 'plasma', price: 30, min: 8, chance: 0 };   // back when plasma has its own sheets
 
 /* ---------- pickups ---------- */
 const FOODS = {
@@ -3209,7 +3214,7 @@ function dealDamage(att, tgt, info) {
   }
   // player block (front only)
   if (tgt === G.player && tgt.state === 'block' && tgt.facing === -dir && info.kb !== 'unblockable') {
-    dmg *= 0.15; Audio.sfx('block'); FX.ring(tgt.x + tgt.facing * 20, tgt.y, -60, '#25d6ff', 14, 0.2, 3);
+    dmg *= 0.15; Audio.sfx('block'); FX.ring(tgt.x + tgt.facing * 20, tgt.y, -60, '#25d6ff', 14, 0.2, 3); tgt.blockHitT = 0.3;
     tgt.vx = dir * 120; tgt.hp -= dmg; tgt.energy = Math.min(100, tgt.energy + 4);
     if (tgt.hp <= 0) tgt.hp = 1;
     return true;
@@ -3297,8 +3302,8 @@ class Player extends Actor {
     humanoidInit(this, nimaLook(Save.data.equip));
     this.melee = null; this.gun = null; this.active = 'fist';
     const lo = Save.data.loadout || {};
-    if (lo.melee && WEAPONS[lo.melee.id] && lo.melee.uses > 0) this.melee = { w: WEAPONS[lo.melee.id], uses: lo.melee.uses };
-    if (lo.gun && WEAPONS[lo.gun.id] && lo.gun.ammo > 0) this.gun = { w: WEAPONS[lo.gun.id], ammo: lo.gun.ammo };
+    if (lo.melee && WEAPONS[lo.melee.id] && lo.melee.uses > 0) this.melee = { w: WEAPONS[weaponFor(lo.melee.id)], uses: lo.melee.uses };
+    if (lo.gun && WEAPONS[lo.gun.id] && lo.gun.ammo > 0) this.gun = { w: WEAPONS[weaponFor(lo.gun.id)], ammo: lo.gun.ammo };
     this.throws = Object.assign({ bomb: 0, boomer: 0, shuriken: 0 }, lo.throws || { bomb: 2 });
     this.tsel = lo.tsel && this.throws[lo.tsel] > 0 ? lo.tsel : (THROW_ORDER.find(k => this.throws[k] > 0) || 'bomb');
     this.active = this.melee ? 'melee' : 'fist'; this.superAnn = false;
@@ -3398,7 +3403,7 @@ class Player extends Actor {
       }
       case 'fall': this.x += this.vx * dt; this.vx *= 0.98; pose = 'fallen'; poseOpts.k = M.clamp(this.stateT * 3, 0, 1); this.invuln = 0.1; break;
       case 'down': pose = 'fallen'; poseOpts.k = 1; this.vx = 0; this.invuln = 0.2;
-        if (this.stateT >= this.stateDur) { this.setState('getup', 0.4); this.invuln = 0.9; } break;
+        if (this.stateT >= this.stateDur) { this.setState('getup', 0.62); this.invuln = 1.1; } break;
       case 'getup': pose = 'getup'; if (this.stateT >= this.stateDur) this.setState('idle'); break;
       case 'block': pose = 'block'; this.vx = M.damp(this.vx, 0, 10, dt); this.x += this.vx * dt;
         if (!I.down('block')) this.setState('idle'); break;
@@ -3495,11 +3500,14 @@ class Player extends Actor {
     if (I.take('pickup')) {
       if (G.merchant && G.merchant.near && !G.merchant.leaving) { UI.openMerchant(G.merchant); return; }
       const pk = nearestPickup(this, true);
-      if (pk) { this.pendingPickup = pk; this.face(pk.x - this.x); this.pickFrom = this.x; this.pickTo = pk.x - this.facing * 20; this.setState('pickup', 0.42); Audio.sfx('whoosh'); return; }
+      if (pk) { this.pendingPickup = pk; this.face(pk.x - this.x); this.pickFrom = this.x; this.pickTo = pk.x - this.facing * 20; this.setState('pickup', 0.6); Audio.sfx('whoosh'); return; }
       if (!Input.touch.active && !Input.pad.connected && this.active === 'melee' && this.melee) { this.throwWeapon(); return; }
       FX.text(this.x, this.y, -150, 'چیزی برای برداشتن نیست', '#b9b2dd', 14);
     }
     if (I.take('heavy')) {
+      // K with a weapon in hand: a different, heavier style with that weapon (never an empty-hand punch)
+      if (this.active === 'melee' && this.melee) { this.heavyWeapon(); return; }
+      if (this.active === 'gun' && this.gun) { this.startAttack('gunbash'); return; }
       const dn = G.enemies.find(e => !e.dead && e.state === 'down' && Math.abs(e.x - this.x) < 70 * Math.max(1, e.scale * 0.8) && Math.abs(e.y - this.y) < 26);
       if (dn) { this.face(dn.x - this.x); this.startAttack('stomp'); return; }
       const t = this.frontEnemy(70);
@@ -3531,6 +3539,13 @@ class Player extends Actor {
     this.state = Math.hypot(this.vx, this.vy) > 8 ? 'move' : 'idle';
   }
   /* dodge: forward roll, back-flip or side-step (depth), chosen by the stick direction */
+  heavyWeapon() {
+    const w = this.melee.w; this.startAttack('weapon', w); const a = this.atk;
+    const hw = Object.assign(Object.create(w), { dmg: w.dmg * 1.7, kb: 'knockdown', push: (w.push || 150) * 1.5 + 80, poise: (w.poise || 20) * 1.8, shake: (w.shake || 3) + 4, hitsDown: true });
+    a.weapon = a.mv = hw; a.step = 3; a.anim = w.combo[2]; this.wComboT = 0;
+    const [w1, a1, r1] = w.t; a.w1 = w1 * 1.9; a.a1 = a1 * 1.3; a.total = a.w1 + a.a1 + r1 * 1.4; this.stateDur = a.total;
+    Audio.sfx('whooshBig');
+  }
   startDodge(ax) {
     // quick evasive dash in any direction of the stick (no flips): forward = duck & weave, back = sway back, up/down = side-step
     let dx = ax.x, dy = ax.y; if (Math.hypot(dx, dy) < 0.25) { dx = -this.facing; dy = 0; }
@@ -3591,8 +3606,12 @@ class Player extends Actor {
     if (!(this.throws[id] > 0)) id = THROW_ORDER.find(k => this.throws[k] > 0);
     if (!id) { Audio.sfx('deny'); FX.text(this.x, this.y, -140, 'سلاح پرتابی نداری', '#ff3f6a', 15); return false; }
     this.tsel = id; this.throws[id]--;
-    const T = THROWABLES[id], hp = this.skel ? skelWorld(this, this.skel.fh) : { x: this.x, h: -80 };
-    this.startAttack('throw'); Audio.sfx('throw');
+    const T = THROWABLES[id];
+    this.startAttack('throw'); const atk = this.atk;
+    // the item leaves the hand on the release frame of the throw sheet
+    setTimeoutGame(atk.w1, () => {
+    if (this.atk !== atk || this.dead) { this.throws[id] = Math.min(T.max, this.throws[id] + 1); return; }   // interrupted: keep the item
+    Audio.sfx('throw'); const hp = { x: this.x + this.facing * 26 * this.scale, h: -this.z - 110 * this.scale };
     const mk = (extra) => { const p = G.proj.get(); if (!p) return null; p.hitSet.clear(); Object.assign(p, { team: 'player', owner: this, x: hp.x, y: this.y, h: -84, vx: 0, vy: 0, vh: 0, grav: 0, spin: 0, weaponKill: true, push: 200, kb: 'knockdown', r: 14 }, extra); return p; };
     if (id === 'bomb') {
       const tgt = this.frontEnemy(420), dist = tgt ? M.clamp(Math.abs(tgt.x - this.x), 120, 420) : 300, Tt = 0.7;
@@ -3602,6 +3621,7 @@ class Player extends Actor {
     } else {
       for (const dy of [-34, 0, 34]) mk({ type: 'shuriken', vx: this.facing * 980, vy: dy * 1.2, life: 0.8, dmg: T.dmg * this.dmgMul, kb: 'stagger', push: 120, r: 11, killStyle: 'slice', pierce: 2 });
     }
+    });
     if (this.throws[id] <= 0) { const nx = THROW_ORDER.find(k => this.throws[k] > 0); if (nx) this.tsel = nx; }
     return true;
   }
@@ -3615,7 +3635,7 @@ class Player extends Actor {
     g.ammo--; this.fireCD = w.rate; this.recoil = Math.min(0.6, this.recoil + w.recoil); this.aimT = 0.7;
     Audio.sfx(w.sfx); if (w.shake) shake(w.shake);
     const S = this.skel, len = ({ pistol: 30, magnum: 38, shotgun: 74, launcher: 64, plasma: 70 })[w.id] || 56, wa = this.rig.pose.wa;
-    const mz = skelWorld(this, { x: S.fh.x + Math.cos(wa) * len, y: S.fh.y + Math.sin(wa) * len - 4 });
+    const mz = NimaSprite.muzzle(this, len) || skelWorld(this, { x: S.fh.x + Math.cos(wa) * len, y: S.fh.y + Math.sin(wa) * len - 4 });
     FX.muzzle(mz.x, this.y, mz.h, this.facing, w.id === 'shotgun' || w.id === 'magnum' ? 1.8 : w.id === 'smg' ? 1.1 : 1.3);
     if (!w.beam && !w.grenade && (!w.auto || g.ammo % 2 === 0)) FX.shell(skelWorld(this, S.fh).x, this.y, mz.h - 4, this.facing);
     if (w.id === 'shotgun') { this.pumpT = 0.55; setTimeoutGame(0.28, () => Audio.sfx('empty')); }
@@ -3640,11 +3660,13 @@ class Player extends Actor {
   }
   throwWeapon() {
     const m = this.melee; this.melee = null; this.active = this.gun ? 'gun' : 'fist';
-    this.startAttack('throw'); Audio.sfx('throw');
-    const S = this.skel, p = G.proj.get(); if (!p) return;
-    const hp = skelWorld(this, S.fh);
+    this.startAttack('throw');
+    setTimeoutGame(this.atk.w1, () => {
+    Audio.sfx('throw'); const p = G.proj.get(); if (!p) return;
+    const hp = { x: this.x + this.facing * 26 * this.scale, h: 0 };
     Object.assign(p, { type: 'thrown', team: 'player', x: hp.x, y: this.y, h: -70, vx: this.facing * 720, vy: 0, vh: 0, life: 0.7, dmg: m.w.throwDmg * this.dmgMul, kb: 'knockdown', push: 260, r: 16, grav: 0, owner: this, weapon: m.w, weaponKill: true, spin: 0 });
     p.hitSet.clear();
+    });
   }
   attackActive(a, dt) {
     const mv = a.mv; let shape;
@@ -3688,6 +3710,7 @@ class Player extends Actor {
    PICKUPS & PROPS
    ========================================================= */
 function spawnPickup(kind, id, x, y, extra = {}) {
+  if (kind === 'weapon') { id = weaponFor(id); NimaSprite.want(id); }   // start loading its sheets now
   const p = Object.assign({ kind, id, x, y, z: 30, vz: 220, vx: M.rand(-80, 80), t: 0, dead: false }, extra);
   if (kind === 'weapon') { const w = WEAPONS[id]; p.uses = w.uses; p.ammo = w.ammo; }
   if (kind === 'throw' && !extra.count) p.count = 1;
@@ -3697,7 +3720,7 @@ function dropDebris(x, y, w) { FX.shard(x, y, -60, '#555a6a', 6); }
 function nearestPickup(pl, interact) {
   let best = null, bd = 85;
   for (const p of G.pickups) {
-    if (p.dead || p.kind === 'coin' || p.kind === 'heart' || p.z > 5) continue;
+    if (p.dead || p.kind === 'coin' || p.kind === 'heart' || p.z > 5 || (p.dropped && p.t < 0.9)) continue;
     const d = Math.abs(p.x - pl.x) + Math.abs(p.y - pl.y) * 1.5;
     if (d < bd) { bd = d; best = p; }
   }
@@ -3707,8 +3730,9 @@ function collectPickup(pl, p) {
   if (p.dead) return; p.dead = true;
   if (p.kind === 'weapon') {
     const w = WEAPONS[p.id];
-    if (w.type === 'melee') { if (pl.melee) spawnPickup('weapon', pl.melee.w.id, pl.x, pl.y, { uses: pl.melee.uses }).uses = pl.melee.uses; pl.melee = { w, uses: p.uses }; pl.active = 'melee'; }
-    else { if (pl.gun) { const d = spawnPickup('weapon', pl.gun.w.id, pl.x, pl.y); d.ammo = pl.gun.ammo; } pl.gun = { w, ammo: p.ammo }; pl.active = 'gun'; }
+    const toss = { vx: -pl.facing * 190, vz: 300, z: 40, dropped: true };
+    if (w.type === 'melee') { if (pl.melee) { spawnPickup('weapon', pl.melee.w.id, pl.x - pl.facing * 20, pl.y, toss).uses = pl.melee.uses; FX.text(pl.x, pl.y, -100, pl.melee.w.name + ' کنار گذاشته شد', '#b9b2dd', 13); } pl.melee = { w, uses: p.uses }; pl.active = 'melee'; }
+    else { if (pl.gun) { const d = spawnPickup('weapon', pl.gun.w.id, pl.x - pl.facing * 20, pl.y, toss); d.ammo = pl.gun.ammo; FX.text(pl.x, pl.y, -100, pl.gun.w.name + ' کنار گذاشته شد', '#b9b2dd', 13); } pl.gun = { w, ammo: p.ammo }; pl.active = 'gun'; }
     Audio.sfx('pickup'); FX.text(pl.x, pl.y, -130, w.name, '#8ff0ff', 18);
   } else if (p.kind === 'throw') {
     const T = THROWABLES[p.id]; pl.throws[p.id] = Math.min(T.max, (pl.throws[p.id] || 0) + (p.count || 1)); if (!(pl.throws[pl.tsel] > 0)) pl.tsel = p.id;
@@ -4291,7 +4315,8 @@ class Enemy extends Actor {
   }
   drawBody(ctx) {
     ctx.save();
-    if (this.rig) { ctx.scale(this.scale * spinScale(this), this.scale); drawHumanoid(ctx, this, G.t); }
+    if (this.def.mirror && NimaSprite.drawMirror(ctx, this)) {}
+    else if (this.rig) { ctx.scale(this.scale * spinScale(this), this.scale); drawHumanoid(ctx, this, G.t); }
     else {
       const t = G.t + this.seed, sp = Math.hypot(this.vx, this.vy), st = this.state;
       let sx = 1, sy = 1, rot = 0, bob = 0;
@@ -4529,6 +4554,369 @@ function drawHumanActor(ctx, a, cx) {
   ctx.restore();
 }
 Player.prototype.draw = function (ctx, cx) { drawHumanActor(ctx, this, cx); };
+/* generated by art/nima/build_atlas.py + gen_data.py — hand-drawn Nima sheets (files in img/nima), one shared character scale, anchored */
+'use strict';
+const NIMA_SHEETS = {
+  idleB: { src: 'img/nima/idleB.0680efdc.webp', cw: 166.334, ch: 349, ax: 86.28, ay: 345.12, n: 12, k: 0.45455 },
+  walkB: { src: 'img/nima/walkB.516053f5.webp', cw: 168.113, ch: 344, ax: 75.8, ay: 340.67, n: 12, k: 0.45455 },
+  guard: { src: 'img/nima/guard.661c046c.webp', cw: 169.797, ch: 344, ax: 86.54, ay: 340.55, n: 12, k: 0.45455 },
+  combo: { src: 'img/nima/combo.285d8fb7.webp', cw: 212.168, ch: 346, ax: 98.83, ay: 341.88, n: 12, k: 0.45455 },
+  kick: { src: 'img/nima/kick.25e771e3.webp', cw: 206.919, ch: 331, ax: 123.37, ay: 327.62, n: 10, k: 0.45455 },
+  upper2: { src: 'img/nima/upper2.60edcb81.webp', cw: 237.22, ch: 361, ax: 105.03, ay: 356.36, n: 12, k: 0.45455 },
+  jumpk: { src: 'img/nima/jumpk.7d3e71b8.webp', cw: 232.235, ch: 360, ax: 105.36, ay: 355.61, n: 13, k: 0.45455 },
+  dodge: { src: 'img/nima/dodge.fa94c2a5.webp', cw: 240.603, ch: 346, ax: 123.29, ay: 341.86, n: 12, k: 0.45455 },
+  hit: { src: 'img/nima/hit.a3af645c.webp', cw: 250.474, ch: 328, ax: 136.99, ay: 324.51, n: 8, k: 0.45455 },
+  fall: { src: 'img/nima/fall.3a29dfe2.webp', cw: 305.872, ch: 332, ax: 152.94, ay: 326.88, n: 10, k: 0.45455 },
+  getup: { src: 'img/nima/getup.2ae0d84d.webp', cw: 302.211, ch: 329, ax: 151.11, ay: 325.3, n: 10, k: 0.45455 },
+  run: { src: 'img/nima/run.f71a21ff.webp', cw: 238.876, ch: 310, ax: 132.88, ay: 305.8, n: 10, k: 0.45455 },
+  pickB: { src: 'img/nima/pickB.4fb5479f.webp', cw: 221.31, ch: 352, ax: 103.35, ay: 347.02, n: 12, k: 0.45455 },
+  throwB: { src: 'img/nima/throwB.234152fc.webp', cw: 299.633, ch: 352, ax: 140.3, ay: 346.15, n: 12, k: 0.45455 },
+  victory: { src: 'img/nima/victory.211104ef.webp', cw: 215.644, ch: 381, ax: 113.03, ay: 376.83, n: 12, k: 0.45455 },
+  stomp: { src: 'img/nima/stomp.26666e92.webp', cw: 288.889, ch: 352, ax: 140.0, ay: 347.78, n: 12, k: 0.45455 },
+  wpn1: { src: 'img/nima/wpn1.da77afb8.webp', cw: 247.228, ch: 355, ax: 129.38, ay: 350.69, n: 12, k: 0.45455 },
+  wpn2: { src: 'img/nima/wpn2.457b9bc2.webp', cw: 253.333, ch: 367, ax: 125.3, ay: 362.22, n: 12, k: 0.45455 },
+  rifle: { src: 'img/nima/rifle.ead356c6.webp', cw: 214.444, ch: 342, ax: 106.06, ay: 337.78, n: 12, k: 0.45455 },
+  pistol: { src: 'img/nima/pistol.c34cb951.webp', cw: 190.0, ch: 344, ax: 93.58, ay: 340.0, n: 12, k: 0.45455 },
+  batC: { src: 'img/nima/batC.2b558640.webp', cw: 194.171, ch: 342, ax: 92.44, ay: 338.2, n: 12, k: 0.45455 },
+  batA: { src: 'img/nima/batA.140e59ac.webp', cw: 299.682, ch: 391, ax: 137.19, ay: 385.97, n: 12, k: 0.45455 },
+  stickC: { src: 'img/nima/stickC.f1dd2e63.webp', cw: 200.39, ch: 343, ax: 97.15, ay: 339.19, n: 12, k: 0.45455 },
+  stickA: { src: 'img/nima/stickA.48b1eec0.webp', cw: 302.989, ch: 411, ax: 137.24, ay: 406.33, n: 12, k: 0.45455 },
+  axeC: { src: 'img/nima/axeC.dc20402c.webp', cw: 240.429, ch: 344, ax: 131.99, ay: 339.43, n: 12, k: 0.45455 },
+  axeA: { src: 'img/nima/axeA.ebb72e41.webp', cw: 347.298, ch: 431, ax: 158.18, ay: 425.81, n: 12, k: 0.45455 },
+  pistolC: { src: 'img/nima/pistolC.55bd260d.webp', cw: 197.766, ch: 345, ax: 102.14, ay: 340.53, n: 12, k: 0.45455 },
+  pistolA: { src: 'img/nima/pistolA.55ad35d2.webp', cw: 311.667, ch: 359, ax: 132.55, ay: 353.57, n: 12, k: 0.45455 },
+  shotgunC: { src: 'img/nima/shotgunC.328c6128.webp', cw: 265.517, ch: 349, ax: 106.18, ay: 343.91, n: 12, k: 0.45455 },
+  shotgunA: { src: 'img/nima/shotgunA.3649ecdd.webp', cw: 304.118, ch: 344, ax: 123.56, ay: 339.06, n: 12, k: 0.45455 },
+  smgC: { src: 'img/nima/smgC.0da192c1.webp', cw: 234.609, ch: 347, ax: 101.28, ay: 341.6, n: 12, k: 0.45455 },
+  smgA: { src: 'img/nima/smgA.e5a582d5.webp', cw: 286.786, ch: 346, ax: 109.49, ay: 340.48, n: 12, k: 0.45455 },
+};
+const NIMA_CORE = ["idleB", "walkB", "guard", "combo", "kick", "upper2", "jumpk", "dodge", "hit", "fall", "getup", "run", "pickB", "throwB", "victory", "stomp"];
+/* weapon hand per frame, game px from the anchor: [x, y, angle rad | null = by weapon type]; pistolMz = muzzle of the drawn pistol */
+const NIMA_GRIPS = {"idleB": [[-18.81, -49.15, null], [-18.08, -50.96, null], [-18.45, -54.06, null], [-17.81, -59.15, null], [-16.85, -60.06, null], [-17.04, -60.56, null], [-16.9, -56.33, null], [-16.76, -53.19, null], [-17.67, -51.28, null], [-17.85, -49.1, null], [-17.9, -48.65, null], [-18.9, -48.65, null]], "walkB": [[-12.77, -51.26, null], [-9.05, -51.99, null], [2.0, -58.58, null], [4.73, -60.17, null], [3.23, -58.26, null], [-4.09, -54.08, null], [0.95, -56.81, null], [4.36, -59.17, null], [2.55, -56.31, null], [-2.0, -55.08, null], [-8.64, -51.67, null], [-10.82, -51.49, null]], "wpn1": [[0.24, -53.59, 0.96], [3.51, -53.63, 0.96], [31.01, -72.41, -0.349], [38.42, -94.63, -0.175], [24.78, -123.81, -1.745], [-45.99, -141.22, -2.618], [-30.9, -146.41, -2.269], [-8.31, -144.86, -1.571], [30.6, -57.77, 0.524], [37.96, -52.36, 1.047], [22.42, -39.9, 1.396], [-4.63, -53.59, 0.96]], "wpn2": [[19.0, -60.6, 0.698], [17.77, -66.06, 0.698], [24.59, -101.92, -1.047], [19.18, -120.6, -1.396], [6.0, -136.92, -1.92], [-43.86, -149.24, -2.793], [-7.36, -150.37, -2.967], [42.95, -80.19, -0.175], [39.23, -51.42, 0.524], [37.09, -35.87, 0.96], [22.82, -49.78, 0.785], [23.59, -62.37, 0.698]], "rifle": [[-22.25, -56.36, 1.309], [-12.16, -62.54, 1.309], [-4.8, -79.99, 0.124], [-1.25, -90.67, 0.052], [0.61, -92.99, -0.304], [6.34, -93.86, -0.399], [4.29, -94.63, -0.317], [4.56, -94.76, -0.333], [3.75, -94.31, -0.279], [4.84, -94.31, -0.282], [-2.66, -87.86, 0.099], [-16.39, -60.4, 1.309]], "jumpk": [[-11.89, -84.73, "G"], [-9.16, -69.01, "G"], [-21.3, -48.6, "G"], [-17.75, -83.55, "G"], [-21.94, -85.19, "G"], [-22.12, -79.51, "G"], [-20.39, -76.14, "G"], [-17.62, -71.41, "G"], [-14.16, -74.46, "G"], [-8.94, -79.64, "G"], [-14.71, -77.87, "G"], [-19.03, -89.82, "G"], [-23.16, -81.51, "G"]], "dodge": [[-5.5, -91.98, "G"], [-4.77, -90.62, "G"], [0.78, -79.48, "G"], [5.55, -59.35, "G"], [-4.45, -91.8, "G"], [-7.95, -93.85, "G"], [-16.31, -89.48, "G"], [-8.9, -89.07, "G"], [-5.77, -91.16, "G"], [-7.45, -89.89, "G"], [-12.36, -81.16, "G"], [-10.45, -81.8, "G"]], "guard": [[-11.15, -84.34, "G"], [-11.15, -84.34, "G"], [-7.52, -91.16, "G"], [-2.97, -100.25, "G"], [1.57, -106.61, "G"], [-12.65, -85.66, "G"], [-0.56, -107.89, "G"], [10.75, -124.25, "G"], [0.07, -124.21, "G"], [0.44, -123.71, "G"], [-10.52, -83.34, "G"], [-3.84, -76.34, "G"]], "pistolMz": [45.39, -112.16], "shotgunMz": [43.38, -110.05], "smgMz": [42.23, -109.51]};
+/* gripping-hand layers (same cells as the sheets): drawn over the weapon so the fingers wrap the handle */
+const NIMA_HANDS = {
+  idleB: 'img/nima/hand_idleB.6f3e9e5f.webp',
+  walkB: 'img/nima/hand_walkB.07668049.webp',
+  wpn1: 'img/nima/hand_wpn1.a3cbea2f.webp',
+  wpn2: 'img/nima/hand_wpn2.2178757e.webp',
+  rifle: 'img/nima/hand_rifle.b3384016.webp',
+  jumpk: 'img/nima/hand_jumpk.8948804b.webp',
+  dodge: 'img/nima/hand_dodge.2725b013.webp',
+  guard: 'img/nima/hand_guard.b1ad48ee.webp',
+};
+/* =========================================================
+   sprites.js — picks the sheet + frame for Nima's current state and draws it.
+   Frame data lives in sprites_data.js (generated, every sheet at one shared character scale).
+   - walk / run advance with the distance actually covered (feet never slide)
+   - attacks map windup / active / recovery onto explicit frame lists, so the hit lands on the strike frame
+   - jump frames follow the vertical speed, falls / get-ups follow the state timers
+   - calm idle <-> guard stance blends through the guard sheet when enemies come close
+   ========================================================= */
+'use strict';
+const NimaSprite = {
+  ready: false, img: {}, white: {}, hand: {}, on: true, loading: {}, used: {},
+  /* sheets are separate image files: the core set loads at start, weapon sheets the first time that weapon shows up,
+     and sheets nobody has drawn for a while are dropped again so phones keep their memory */
+  init() {
+    let left = NIMA_CORE.length;
+    for (const k of NIMA_CORE) this.load(k, () => { if (--left === 0) this.ready = true; });
+  },
+  load(k, done) {
+    if (this.img[k]) { if (done) done(); return; }
+    if (this.loading[k]) { if (done) this.loading[k].push(done); return; }
+    this.loading[k] = done ? [done] : [];
+    const im = new Image(); im.decoding = 'async';
+    const fin = () => { const cbs = this.loading[k] || []; delete this.loading[k]; cbs.forEach(f => f()); };
+    im.onload = () => { this.img[k] = im; this.used[k] = performance.now(); fin(); };
+    im.onerror = () => { setTimeout(() => { delete this.loading[k]; }, 3000); fin(); };   // retry later (offline / flaky network)
+    im.src = NIMA_SHEETS[k].src;
+    if (NIMA_HANDS[k] && !this.hand[k]) { const h = new Image(); h.onload = () => { this.hand[k] = h; }; h.src = NIMA_HANDS[k]; }
+  },
+  has(k) { if (this.img[k]) { this.used[k] = performance.now(); return true; } if (NIMA_SHEETS[k]) this.load(k); return false; },
+  // sheets each weapon needs (lucille / magnum share the bat / pistol drawings for now)
+  WSHEETS: { stick: ['stickC', 'stickA'], bat: ['batC', 'batA'], lucille: ['batC', 'batA'], axe: ['axeC', 'axeA'],
+             pistol: ['pistolC', 'pistolA'], magnum: ['pistolC', 'pistolA'], shotgun: ['shotgunC', 'shotgunA'], smg: ['smgC', 'smgA'] },
+  want(id) { (this.WSHEETS[id] || []).forEach(k => this.load(k)); },
+  // drop weapon sheets (and every white flash copy) not drawn for 20 s; the core set always stays
+  trim() {
+    const now = performance.now();
+    for (const k in this.img) {
+      if (now - (this.used[k] || 0) < 20000) continue;
+      delete this.white[k];
+      if (!NIMA_CORE.includes(k)) { delete this.img[k]; delete this.hand[k]; }
+    }
+  },
+  whiteOf(k) { return this.white[k] || (this.white[k] = this.makeWhite(this.img[k])); },
+  makeWhite(im) { // white silhouette for hit flashes
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d');
+    g.drawImage(im, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); return c;
+  },
+  /* attack -> sheet + frames for windup (w), active (a) and recovery (r); a frame may be [sheet, f] */
+  ATK: {
+    jab:      { s: 'combo',  w: [1, 2],       a: [3],    r: [2, 0] },
+    cross:    { s: 'combo',  w: [5, 6],       a: [7],    r: [6, 4] },
+    hook:     { s: 'combo',  w: [8, 9],       a: [10],   r: [11] },
+    kick:     { s: 'kick',   w: [0, 1, 2, 3, 4], a: [5, 6], r: [7, 8, 9] },
+    uppercut: { s: 'upper2', w: [1, 2, 3],    a: [4],    r: [5, 9, 10, 11] },
+    heavy:    { s: 'upper2', w: [1, 2, 6],    a: [7],    r: [8, 9, 10] },
+    airkick:  { s: 'jumpk',  w: [7],          a: [8],    r: [9, 10] },
+    throw:    { s: 'throwB', w: [1, 2, 3, 4, 5], a: [6, 7], r: [8, 9, 10, 11] },
+    stomp:    { s: 'stomp',  w: [2, 3, 4, 5, 6, 7], a: [8], r: [9, 10, 11] },
+  },
+  atkFrame(A, a) {
+    const t = a.t, at = (list, k) => list[Math.min(list.length - 1, Math.floor(k * list.length))];
+    let f;
+    if (t < a.w1) f = at(A.w, t / a.w1);
+    else if (t < a.w1 + a.a1) f = at(A.a, (t - a.w1) / a.a1);
+    else f = at(A.r, (t - a.w1 - a.a1) / Math.max(0.001, a.total - a.w1 - a.a1));
+    return Array.isArray(f) ? { k: f[0], f: f[1] } : { k: A.s, f };
+  },
+  /* weapons: which sheet each weapon swings with, and how it hangs from the hand at rest */
+  ONE_HAND: { stick: 1, katana: 1, machete: 1 },
+  WSEQ: {   // three different swings in a row (weapon combo steps A, B, C)
+    // [3] = heavy (K): long wind-up over the head, full slam through
+    wpn1: [{ w: [1, 2], a: [3], r: [2, 1] }, { w: [6, 7], a: [8], r: [9, 10] }, { w: [4, 5, 6, 7], a: [8, 9], r: [10, 11] }, { w: [4, 5, 6, 6, 7], a: [8, 9, 10], r: [10, 11] }],
+    wpn2: [{ w: [2, 3, 4], a: [7], r: [8, 11] }, { w: [3, 4, 5], a: [7, 8], r: [9, 10, 11] }, { w: [4, 5, 6], a: [7, 8, 9], r: [10, 11] }, { w: [3, 4, 5, 6, 6], a: [7, 8, 9], r: [10, 11] }],
+  },
+  GUNBASH: { pistol: { s: 'wpn1', w: [1, 2], a: [3], r: [2, 1] }, rifle: { s: 'wpn2', w: [2, 3, 4], a: [7], r: [8, 11] } },
+  restAngle(w) { return w.type === 'gun' ? (w.hold === 'pistol' ? 1.4 : 1.2) : 0.95; },
+  guardAngle(w) { return w.type === 'gun' ? (w.hold === 'pistol' ? -0.15 : -0.35) : -0.55; },
+  /* weapons drawn INSIDE the sheets by hand: <id>C = carry (0-3 idle, 4-11 walk), <id>A = attack (0-5 J, 6-11 K) */
+  // guns: <id>A = 0 carry, 1 raise, 2 aim, 3 fire (drawn flash), 4 recoil, 5 aim, 6-11 hit with the gun
+  BAKED: { bat: 'bat', lucille: 'bat', stick: 'stick', axe: 'axe', pistol: 'pistol', magnum: 'pistol', shotgun: 'shotgun', smg: 'smg' },
+  bakedSeq: { J: { w: [1], a: [2], r: [3, 4, 5] }, K: { w: [6, 7, 8], a: [9], r: [10, 11] }, BASH: { w: [6, 7], a: [8, 9], r: [10, 11] } },
+  pickBaked(p, w, b) {
+    const st = p.state, sp = Math.hypot(p.vx, p.vy), C = b + 'C', A = b + 'A';
+    if (!NIMA_SHEETS[C] || !NIMA_SHEETS[A]) return null;
+    const okC = this.has(C), okA = this.has(A); if (!okC || !okA) return null;   // still loading: generic sheet + weapon in hand
+    if (st === 'attack' && p.atk && p.atk.weapon && w.type === 'melee') {
+      const step = p.atk.step || 0, q = step >= 2 ? this.bakedSeq.K : this.bakedSeq.J;
+      return this.atkFrame({ s: A, w: q.w, a: q.a, r: q.r }, p.atk);
+    }
+    if (st === 'attack' && p.atk && p.atk.key === 'gunbash') { const q = this.bakedSeq.BASH; return this.atkFrame({ s: A, w: q.w, a: q.a, r: q.r }, p.atk); }
+    if (w.type === 'gun' && (p.gunK || 0) > 0 && ['idle', 'move', 'skid', 'land'].includes(st)) {
+      if (p.gunK < 1) return { k: A, f: 1, gun: true };
+      const since = w.rate - p.fireCD;                     // time since the last shot
+      if (p.aimT > 0 && since < 0.06) return { k: A, f: w.auto && Math.floor(G.t * 30) % 2 ? 4 : 3, gun: true };
+      if (p.aimT > 0 && since < 0.15) return { k: A, f: 4, gun: true };
+      return { k: A, f: 2, gun: true };
+    }
+    if (st === 'idle' || st === 'move' || st === 'skid') {
+      if (sp > 25 && st !== 'skid') {
+        const cyc = (p.running ? 130 : 96) * p.scale, ph = ((p.walkD || 0) / cyc) % 1;
+        return { k: C, f: 4 + Math.floor(ph * 8) % 8 };
+      }
+      return { k: C, f: Math.floor((G.t + (p.seed || 0)) * 4) % 4 };
+    }
+    if (st === 'land') return { k: C, f: 0 };
+    return null;     // jump, dodge, hit ... -> generic sheet with the weapon placed in the hand
+  },
+  pickWeapon(p, w) {
+    const st = p.state, sp = Math.hypot(p.vx, p.vy); this.want(w.id);
+    if (this.BAKED[w.id]) { const r = this.pickBaked(p, w, this.BAKED[w.id]); if (r) return r; }
+    const grip = (k, f, ang) => { const g = NIMA_GRIPS[k] && NIMA_GRIPS[k][f]; return g ? [g[0], g[1], g[2] == null ? ang : g[2] === 'G' ? this.guardAngle(w) : g[2]] : null; };
+    if (st === 'attack' && p.atk && p.atk.key === 'gunbash' && w.type === 'gun') {        // K with a gun: hit with the gun itself
+      const A = this.GUNBASH[w.hold === 'pistol' ? 'pistol' : 'rifle'], r = this.atkFrame(A, p.atk); r.grip = grip(r.k, r.f); r.w = w; return r;
+    }
+    if (w.type === 'melee') {
+      if (st === 'attack' && p.atk && p.atk.weapon) {
+        const k = this.ONE_HAND[w.id] ? 'wpn1' : 'wpn2', q = this.WSEQ[k][p.atk.step || 0];
+        const r = this.atkFrame({ s: k, w: q.w, a: q.a, r: q.r }, p.atk); r.grip = grip(k, r.f); r.w = w; return r;
+      }
+    } else {
+      const pist = w.hold === 'pistol', k = pist ? 'pistol' : 'rifle', up = p.gunK || 0;
+      if (up > 0 && ['idle', 'move', 'skid', 'land'].includes(st)) {
+        const fired = p.fireCD > w.rate - 0.07 && p.aimT > 0.6;
+        let f;
+        if (up < 1) f = 2 + Math.min(2, Math.floor(up * 3));
+        else if (fired) f = pist ? 6 : (w.auto && Math.floor(G.t * 30) % 2 ? 9 : 8);
+        else f = pist ? 5 : 5 + Math.floor((G.t * 2) % 3);
+        const r = { k, f, w, gun: true };
+        if (pist) r.mz = NIMA_GRIPS.pistolMz[f]; else r.grip = grip(k, f);
+        return r;
+      }
+    }
+    // carrying the weapon: the normal sprite with the weapon in the near hand
+    const base = this.pick(p, true); if (!base) return null;
+    let k = base.k, f = base.f;
+    if (k === 'run') { k = 'walkB'; f = 2 + Math.floor(((p.walkD || 0) / (120 * p.scale)) % 1 * 8) % 8; }
+    if (k === 'guard' && st !== 'block') { k = 'idleB'; f = Math.floor((G.t + (p.seed || 0)) * 7.5) % 12; }
+    const r = { k, f, breathe: base.breathe, w };
+    r.grip = grip(k, f, this.restAngle(w));
+    return r;
+  },
+  /* which sheet/frame to show for the player right now, or null to use the rig */
+  pick(p, bare) {
+    if (!this.ready || !this.on) return null;
+    if (!bare && p.weaponVis) return this.pickWeapon(p, p.weaponVis);
+    const st = p.state, sp = Math.hypot(p.vx, p.vy), N = k => NIMA_SHEETS[k].n;
+    const lin = (k, x) => Math.min(N(k) - 1, Math.max(0, Math.floor(x * N(k))));
+    const seq = (list, x) => list[Math.min(list.length - 1, Math.max(0, Math.floor(x * list.length)))];
+    switch (st) {
+      case 'idle': case 'move': case 'skid': {
+        if (sp > 25 && st !== 'skid') {
+          if (p.running) { const ph = ((p.walkD || 0) / (150 * p.scale)) % 1; return { k: 'run', f: Math.floor(ph * 10) % 10 }; }
+          // walkB: 0-1 standing -> start, 2-9 one full two-step cycle (distance-synced), 10-11 settle back to standing
+          if ((p.mvT || 0) < 0.07) return { k: 'walkB', f: 1 };
+          const ph = ((p.walkD || 0) / (96 * p.scale)) % 1;
+          return { k: 'walkB', f: 2 + Math.floor(ph * 8) % 8 };
+        }
+        if ((p.stopT || 0) > 0 && p.stopT < 0.16 && !(p.guardK > 0)) return { k: 'walkB', f: p.stopT < 0.08 ? 10 : 11 };
+        const g = p.guardK || 0;
+        if (g >= 1) return { k: 'guard', f: 11, breathe: true };              // fighting stance while enemies are close
+        if (g > 0) return { k: 'guard', f: Math.min(5, Math.floor(g * 6)) };  // raising / lowering the fists
+        return { k: 'idleB', f: Math.floor((G.t + (p.seed || 0)) * 7.5) % 12 };
+      }
+      case 'jump': {
+        const v = p.vz; let f;
+        if (p.stateT < 0.06 && v > 0) f = 2; else if (v > 300) f = 3; else if (v > 110) f = 4; else if (v > -110) f = 6; else if (v > -320) f = 7; else f = 10;
+        return { k: 'jumpk', f };
+      }
+      case 'land': return { k: 'jumpk', f: p.stateK < 0.5 ? 11 : 12 };
+      case 'attack': {
+        const a = p.atk; if (!a || a.weapon) return bare ? { k: 'idleB', f: 0 } : null;   // (weapon swapped mid-swing)
+        const A = this.ATK[a.key]; if (!A) return null;
+        return this.atkFrame(A, a);
+      }
+      case 'block': {
+        if ((p.blockHitT || 0) > 0) return { k: 'guard', f: (p.blockHitT > 0.15) ? 9 : 8 };
+        return { k: 'guard', f: Math.min(8, 5 + Math.floor(p.stateT / 0.04)) };
+      }
+      case 'dodge': {
+        // out and back: deepest evasion frame in the middle of the dodge
+        const k = p.stateK, ph = 1 - Math.abs(2 * Math.min(1, k * 1.15) - 1), d = Math.min(3, Math.floor(ph * 4));
+        const base = p.dodgeAnim === 'dodgeSide' ? 8 : p.dodgeAnim === 'dodgeRoll' ? 0 : 4;
+        return { k: 'dodge', f: base + d };
+      }
+      case 'pickup': return { k: 'pickB', f: lin('pickB', p.stateK) };   // bend down, grab, stand up (hands drawn empty)
+      case 'victory': {
+        const t = p.stateT * 10;
+        return { k: 'victory', f: t < 8 ? Math.floor(t) : 7 + (Math.floor(t / 3) % 2) };
+      }
+      case 'hit': case 'stagger': return { k: 'hit', f: lin('hit', p.stateK) };
+      case 'fall': return { k: 'fall', f: Math.min(6, 1 + Math.floor(p.stateT / 0.07)) };
+      case 'down': return { k: 'fall', f: Math.min(9, 7 + Math.floor(p.stateT / 0.08)) };
+      case 'dead': return { k: 'fall', f: p.z > 2 ? Math.min(6, 1 + Math.floor(p.stateT / 0.07)) : Math.min(9, 6 + Math.floor(p.stateT / 0.08)) };
+      case 'getup': return { k: 'getup', f: lin('getup', p.stateK) };
+    }
+    return null;
+  },
+  /* where bullets leave the gun in the current sprite frame (world x + height), or null -> rig */
+  muzzle(p, len) {
+    if (!this.ready || !this.on || !p.gun) return null;
+    const w = p.gun.w, pist = w.hold === 'pistol'; let x, y;
+    const bk = this.BAKED[w.id];
+    if (bk && NIMA_GRIPS[bk + 'Mz']) { const m = NIMA_GRIPS[bk + 'Mz']; x = m[0]; y = m[1]; }
+    else if (pist) { const m = NIMA_GRIPS.pistolMz[5]; x = m[0]; y = m[1]; }
+    else { const g = NIMA_GRIPS.rifle[5], L = len * WEAPON_DRAW * (w.drawScale || 1); x = g[0] + Math.cos(g[2]) * L; y = g[1] + Math.sin(g[2]) * L; }
+    p.gunK = Math.max(p.gunK || 0, 0.99);
+    return { x: p.x + x * p.scale * p.facing, h: -p.z + y * p.scale };
+  },
+  /* ---- the same hand-drawn Nima outside the player: menu showcase, HUD portrait, the purple "fake Nima" enemy ---- */
+  frameAt(k, f, ctx, scale, white) { const S = NIMA_SHEETS[k]; ctx.save(); ctx.scale(scale * S.k, scale * S.k); this.blit(ctx, k, f, white); ctx.restore(); },
+  fakeAtk(key, t, mul = 1.6) { const [w1, a1, r1] = MOVES[key].t.map(v => v * mul); return { t, w1, a1, total: w1 + a1 + r1 }; },
+  // menu: idle, a combo, a kick, the guard stance, an uppercut ... (same order as before)
+  menuPick(cur, t) {
+    if (cur === 'idle') return { k: 'idleB', f: Math.floor(t * 7.5) % 12 };
+    if (cur === 'smirk') return { k: 'guard', f: 11 };
+    if (cur === 'fidget1') { const f = Math.floor(t * 10); return { k: 'victory', f: f < 8 ? f : 7 + (Math.floor(f / 3) % 2) }; }
+    const A = this.ATK[cur]; if (!A) return { k: 'idleB', f: 0 };
+    return this.atkFrame(A, this.fakeAtk(cur, t));
+  },
+  drawMenu(ctx, x, y, scale, cur, t) {
+    if (!this.ready) return false;
+    let sel = this.menuPick(cur, t); if (!this.has(sel.k)) sel = { k: 'idleB', f: 0 }; ctx.save(); ctx.translate(x, y); this.frameAt(sel.k, sel.f, ctx, scale); ctx.restore(); return true;
+  },
+  // HUD: the head of the standing drawing inside the round frame
+  portrait(ctx, x, y, r, pl) {
+    if (!this.ready) return false;
+    const hurt = pl && (pl.state === 'hit' || pl.state === 'stagger'), k = hurt ? 'hit' : 'idleB';
+    ctx.save(); if (pl && pl.dead) ctx.filter = 'grayscale(1) brightness(0.7)';
+    const sc = r / 26; ctx.translate(x - 3 * sc, y + 113 * sc); this.frameAt(k, hurt ? 1 : 0, ctx, sc); ctx.restore(); return true;
+  },
+  // enemy "fake Nima": same sheets, tinted purple
+  pickMirror(e) {
+    const st = e.state, sp = Math.hypot(e.vx, e.vy);
+    if (st === 'windup' || st === 'active' || st === 'recover') {
+      const a = e.atk, key = a && a.anim === 'kick' ? 'kick' : 'jab', A = this.ATK[key], tt = a ? a.t : [0.2, 0.1, 0.3];
+      const el = st === 'windup' ? e.stateK * tt[0] : st === 'active' ? tt[0] + e.stateK * tt[1] : tt[0] + tt[1] + e.stateK * tt[2];
+      return this.atkFrame(A, { t: el, w1: tt[0], a1: tt[1], total: tt[0] + tt[1] + tt[2] });
+    }
+    if (st === 'hit' || st === 'stagger') return { k: 'hit', f: Math.min(7, Math.floor(e.stateK * 8)) };
+    if (st === 'fall' || (e.dead && e.z > 2)) return { k: 'fall', f: Math.min(6, 1 + Math.floor(e.stateT / 0.07)) };
+    if (st === 'down' || e.dead) return { k: 'fall', f: Math.min(9, 7 + Math.floor(e.stateT / 0.08)) };
+    if (st === 'getup') return { k: 'getup', f: Math.min(9, Math.floor(e.stateK * 10)) };
+    if (sp > 25) return { k: 'walkB', f: 2 + Math.floor(G.t * 9 + e.seed * 3) % 8 };
+    return { k: 'guard', f: 11 };
+  },
+  _tint: null,
+  drawMirror(ctx, e) {
+    if (!this.ready) return false;
+    let sel = this.pickMirror(e); if (!this.has(sel.k)) sel = { k: 'guard', f: 11 };
+    const S = NIMA_SHEETS[sel.k], w = Math.ceil(S.cw), h = S.ch;
+    const c = this._tint || (this._tint = document.createElement('canvas')); if (c.width < w || c.height < h) { c.width = Math.max(c.width, w); c.height = Math.max(c.height, h); }
+    const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height); g.globalCompositeOperation = 'source-over';
+    g.drawImage(e.flash > 0 ? this.whiteOf(sel.k) : this.img[sel.k], Math.round(sel.f * S.cw), 0, Math.floor(S.cw), h, 0, 0, Math.floor(S.cw), h);
+    if (!(e.flash > 0)) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(122,60,255,0.5)'; g.fillRect(0, 0, w, h); g.globalCompositeOperation = 'source-over'; }
+    ctx.save(); ctx.scale(e.facing * e.scale * S.k, e.scale * S.k); ctx.drawImage(c, 0, 0, Math.floor(S.cw), h, -S.ax, -S.ay, Math.floor(S.cw), h); ctx.restore(); return true;
+  },
+  blit(ctx, k, f, white) {
+    const S = NIMA_SHEETS[k], im = white ? this.whiteOf(k) : this.img[k], sx = Math.round(f * S.cw), w = Math.floor(S.cw);
+    ctx.drawImage(im, sx, 0, w, S.ch, -S.ax, -S.ay, w, S.ch);
+  },
+  draw(ctx, p, cx, sel) {
+    const S = NIMA_SHEETS[sel.k], s = S.k * p.scale, white = p.flash > 0;
+    let sx = 1, sy = 1; if (sel.breathe) { const b = Math.sin(G.t * 2.6 + (p.seed || 0)); sy = 1 + b * 0.012; sx = 1 - b * 0.005; }
+    ctx.save(); ctx.translate(p.x - cx, p.y - p.z);
+    if (p.invuln > 0 && !['dodge', 'fall', 'down', 'getup'].includes(p.state) && Math.floor(G.t * 20) % 2) ctx.globalAlpha = 0.55;
+    ctx.scale(p.facing * s * sx, s * sy);   // instant flip when turning (classic beat 'em up)
+    this.blit(ctx, sel.k, sel.f, white);
+    if (sel.w && sel.grip) {
+      // weapon over the body, then the fist drawn again on top so the hand really wraps the grip
+      const g = sel.grip, gx = g[0] / S.k, gy = g[1] / S.k, ds = (sel.w.drawScale || 1) * WEAPON_DRAW / S.k;
+      ctx.save(); ctx.translate(gx, gy); ctx.rotate(g[2]); ctx.scale(ds, ds);
+      // melee: nothing of the handle may stick out behind the fist
+      if (sel.w.type === 'melee') { ctx.beginPath(); ctx.rect(-3.2 / (sel.w.drawScale || 1), -60, 400, 120); ctx.clip(); }
+      drawWeapon(ctx, sel.w, white ? '#ffffff' : null, finishFor(sel.w.id)); ctx.restore();
+      // then the gripping hand again on top, so the fingers close around the handle
+      const hl = this.hand[sel.k];
+      if (hl && !white) { const Sx = NIMA_SHEETS[sel.k], sxx = Math.round(sel.f * Sx.cw), ww = Math.floor(Sx.cw); ctx.drawImage(hl, sxx, 0, ww, Sx.ch, -Sx.ax, -Sx.ay, ww, Sx.ch); }
+      else { ctx.save(); ctx.beginPath(); ctx.arc(gx, gy, 7.5 / S.k, 0, 7); ctx.clip(); this.blit(ctx, sel.k, sel.f, white); ctx.restore(); }
+    }
+    ctx.restore();
+  },
+};
+(function () {
+  const upd = Player.prototype.update;
+  Player.prototype.update = function (dt) {
+    const ox = this.x, oy = this.y; upd.call(this, dt);
+    if (this.z <= (this.gnd || 0) + 1) this.walkD = (this.walkD || 0) + Math.hypot(this.x - ox, (this.y - oy) * 0.8);
+    if (this.blockHitT > 0) this.blockHitT -= dt;
+    // walk start / stop timers for the walkB transition frames
+    const sp = Math.hypot(this.vx, this.vy), calm = this.state === 'move' || this.state === 'idle';
+    const walking = calm && sp > 25 && !this.running;
+    if (walking) { this.mvT = (this.mvT || 0) + dt; this.stopT = 0; }
+    else { if ((this.mvT || 0) > 0.12) this.stopT = 0.0001; else if (this.stopT > 0) this.stopT += dt; this.mvT = 0; }
+    // gun raise: 0 -> 1 in 0.12s while aiming / shooting
+    const aiming = this.active === 'gun' && this.gun && (this.aimT > 0 || Input.down('attack'));
+    this.gunK = M.clamp((this.gunK || 0) + (aiming ? dt : -dt) / 0.12, 0, 1);
+    // guard stance: fists come up (0.25s) while an enemy is close and Nima stands still; go down again when clear
+    const near = G.enemies.some(e => !e.dead && Math.abs(e.x - this.x) < 360 && Math.abs(e.y - this.y) < 160);
+    if (['attack', 'block', 'hit', 'stagger', 'dodge', 'land'].includes(this.state)) this.guardHold = 0.9;   // stay in stance between punches
+    else if (this.guardHold > 0) this.guardHold -= dt;
+    const want = (near || this.guardHold > 0) && calm && sp <= 25 ? 1 : 0;
+    if (!calm || sp > 25) this.guardK = near || this.guardHold > 0 ? 1 : 0;   // after attacks / walking, snap straight to the right stance
+    else this.guardK = M.clamp((this.guardK || 0) + (want ? dt : -dt) / 0.25, 0, 1);
+  };
+  const rigDraw = Player.prototype.draw;
+  let trimT = 0;
+  Player.prototype.draw = function (ctx, cx) {
+    let sel = NimaSprite.pick(this);
+    if (sel && !NimaSprite.has(sel.k)) sel = this._lastSel && NimaSprite.img[this._lastSel.k] ? this._lastSel : { k: 'idleB', f: 0 };   // sheet still loading
+    if (sel) { this._lastSel = sel; NimaSprite.draw(ctx, this, cx, sel); } else rigDraw.call(this, ctx, cx);
+    if ((trimT += 1) > 600) { trimT = 0; NimaSprite.trim(); }
+  };
+})();
 /* =========================================================
    world.js — 6 world skies + 31 hand-built scenes (no two stages share a background),
    pre-rendered floor tiles, per-stage environment hazards, merchants,
@@ -5541,7 +5929,7 @@ class Merchant extends Actor {
     this.offers = Merchant.rollOffers(n); this.wave = 0; this.near = false; this.leaving = false; this.alpha = 0;
   }
   static rollOffers(n) {
-    const pool = MERCH_POOL.filter(o => o.min <= n), out = [];
+    const pool = MERCH_POOL.filter(o => o.min <= n && !((o.kind === 'melee' || o.kind === 'gun') && WEAPON_ALIAS[o.id])), out = [];
     const want = { melee: 2, gun: 1, throw: 2, food: 1 };
     for (const k of Object.keys(want)) { const cand = pool.filter(o => o.kind === k); for (let i = 0; i < want[k] && cand.length; i++) out.push(cand.splice(Math.floor(Math.random() * cand.length), 1)[0]); }
     const heart = pool.find(o => o.kind === 'heart'); if (heart && Math.random() < 0.5) out.push(heart);
@@ -6677,7 +7065,7 @@ const UI = {
     ctx.fillStyle = 'rgba(12,8,28,0.72)'; ctx.strokeStyle = 'rgba(37,214,255,0.55)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.roundRect(px, py, 340, 86, 14); ctx.fill(); ctx.stroke();
     ctx.save(); ctx.beginPath(); ctx.arc(px + 42, py + 43, 33, 0, 7); ctx.fillStyle = '#1d1640'; ctx.fill(); ctx.clip();
-    drawPortrait(ctx, pl.look, px + 44, py + 44, 1.15, pl.dead ? 'ko' : pl.expr); ctx.restore();
+    if (!NimaSprite.portrait(ctx, px + 42, py + 43, 33, pl)) drawPortrait(ctx, pl.look, px + 44, py + 44, 1.15, pl.dead ? 'ko' : pl.expr); ctx.restore();
     ctx.beginPath(); ctx.arc(px + 42, py + 43, 33, 0, 7); ctx.strokeStyle = '#25d6ff'; ctx.lineWidth = 3; ctx.stroke();
     ctx.font = '400 18px Lalezar, Vazirmatn, sans-serif'; ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText('NIMA', px + 84, py + 22);
     for (let i = 0; i < 3; i++) { const full = i < Save.data.lives; const pop = full && i === Save.data.lives - 1 && G.announce && G.announce.text.includes('❤') ? 1 + Math.max(0, G.announce.t - 1) * 1.5 : 1; drawHeart(ctx, px + 150 + i * 22, py + 15, 8 * pop, full); }
@@ -6987,7 +7375,8 @@ function renderMenu() {
   if (showcase && UI.screen !== 'map' && UI.screen !== 'shop') {
     const x = UI.screen === 'title' ? W * 0.5 : W * 0.25, y = H - 34;
     drawShadow(ctx, x, y + 2, 60, 0);
-    ctx.save(); ctx.translate(x, y); ctx.scale(showcase.scale, showcase.scale); drawHumanoid(ctx, showcase, G.t); ctx.restore();
+    const seq = ['idle', 'jab', 'cross', 'hook', 'idle', 'kick', 'smirk', 'heavy', 'idle', 'uppercut', 'fidget1', 'idle'];
+    if (!NimaSprite.drawMenu(ctx, x, y, showcase.scale * 1.15, seq[showcase.seq % seq.length], showcase.t)) { ctx.save(); ctx.translate(x, y); ctx.scale(showcase.scale, showcase.scale); drawHumanoid(ctx, showcase, G.t); ctx.restore(); }
   }
   ctx.fillStyle = 'rgba(8,4,20,0.3)'; ctx.fillRect(0, 0, W, H);
 }
@@ -7041,7 +7430,7 @@ const PWA = {
 };
 
 function boot() {
-  Save.load(); Input.init(Save.data.keys); FX.init(); HeadArt.init();
+  Save.load(); Input.init(Save.data.keys); FX.init(); HeadArt.init(); NimaSprite.init();
   G.diff = DIFF[Save.data.difficulty];
   resize(true);
   let rT = 0; const onResize = () => { clearTimeout(rT); rT = setTimeout(() => resize(), 120); };
